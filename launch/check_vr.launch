@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <env name="OPENVR" value="$(env HOME)/libraries/openvr"/>
+  <env name="STEAM" value="$(env HOME)/.local/share/Steam"/>
+  <env name="STEAMVR" value="$(env HOME)/.local/share/Steam/steamapps/common/SteamVR"/>
+  <env name="LD_LIBRARY_PATH" value="$(env LD_LIBRARY_PATH):$(env HOME)/libraries/openvr/lib/linux32:$(env HOME)/libraries/openvr/lib/linux64/:\$(env HOME)/.local/share/Steam/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu:$(env HOME)/.local/share/Steam/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/bin/linux32:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/bin/linux64:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux32:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux64:"/>
+
+  <node name="check_vr" pkg="vive_ros" type="check_vr.sh" output="screen" required="true"/>
+</launch>
