@@ -7,6 +7,7 @@
 
 #include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/Joy.h>
+#include <sensor_msgs/JoyFeedback.h>
 #include <boost/lexical_cast.hpp>
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
@@ -22,6 +23,7 @@ class VIVEnode
     void Run();
     void Shutdown();
     bool setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+    void set_feedback(sensor_msgs::JoyFeedbackConstPtr msg);
 
   private:
     ros::NodeHandle nh_;
@@ -36,6 +38,7 @@ class VIVEnode
     ros::Publisher twist1_pub_;
     ros::Publisher twist2_pub_;
     ros::Publisher button_states_pubs_[vr::k_unMaxTrackedDeviceCount];
+    ros::Subscriber feedback_sub_;
 
     VRInterface vr_;
 
@@ -62,6 +65,8 @@ VIVEnode::VIVEnode(int rate)
   }
   //~ twist1_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist1", 10);
   //~ twist2_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist2", 10);
+
+  feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
 
   return;
 }
@@ -130,6 +135,12 @@ bool VIVEnode::setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Respo
   ROS_INFO(" [VIVE] New world offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
 
   return true;
+}
+
+void VIVEnode::set_feedback(sensor_msgs::JoyFeedbackConstPtr msg) {
+  if(msg->type == 1 /* TYPE_RUMBLE */) {
+    vr_.TriggerHapticPulse(msg->id, 0, (int)(msg->intensity));
+  }
 }
 
 void VIVEnode::Run()

@@ -27,6 +27,7 @@ class VRInterface
     void Update();
     void UpdateCalibration();
     void HandleInput();
+    void TriggerHapticPulse(vr::TrackedDeviceIndex_t unControllerDeviceIndex, uint32_t unAxisId, int usDurationMicroSec);
     
     int GetDeviceMatrix(int index, double pMatrix[3][4]);
     int GetDeviceVel(int index, double lin_vel[3], double ang_vel[3]);
