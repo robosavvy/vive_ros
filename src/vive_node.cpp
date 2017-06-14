@@ -12,15 +12,117 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <cv_bridge/cv_bridge.h>
-//#define L 0
-//#define R 1
-//#define LR 2
+
+
+#include "vive_ros/hellovr_opengl_main.cpp"
+//#include <SDL.h>
+//#include <SDL_opengl.h>
+#include <GL/glew.h>
+#include <GL/glu.h>
 enum {X, Y, XY};
 enum {L, R, LR};
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
+
+class CMainApplicationMod : public CMainApplication
+{
+  public:
+    CMainApplicationMod( int argc, char *argv[] )
+    : CMainApplication( argc, argv )
+    , hmd_fov(110*M_PI/180)
+    {
+      for(int i=0;i<LR;i++){
+        cam_f[i][X] = cam_f[i][Y] = 600;
+      }
+    };
+    ~CMainApplicationMod(){};
+
+    cv::Mat ros_img[LR];
+    double cam_f[LR][XY];
+    const double hmd_fov;//field of view
+
+    void InitTextures(){
+      ros_img[L] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(255,0,0));
+      ros_img[R] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(0,255,0));
+      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
+      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
+    }
+    void RenderFrame(){
+      if ( m_pHMD ){
+        DrawControllers();
+        UpdateTexturemaps();
+        RenderDistortion();
+        vr::Texture_t leftEyeTexture = {(void*)leftEyeDesc.m_nResolveTextureId, vr::API_OpenGL, vr::ColorSpace_Gamma };
+        vr::Texture_t rightEyeTexture = {(void*)rightEyeDesc.m_nResolveTextureId, vr::API_OpenGL, vr::ColorSpace_Gamma };
+        vr::VRCompositor()->Submit(vr::Eye_Left, &leftEyeTexture );
+        vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture );
+      }
+      if ( m_bVblank && m_bGlFinishHack ){ glFinish(); }
+      SDL_GL_SwapWindow( m_pWindow );
+      glClearColor( 0, 0, 0, 1 );
+      glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+      if ( m_bVblank ){
+        glFlush();
+        glFinish();
+      }
+      if ( m_iTrackedControllerCount != m_iTrackedControllerCount_Last || m_iValidPoseCount != m_iValidPoseCount_Last ){
+        m_iValidPoseCount_Last = m_iValidPoseCount;
+        m_iTrackedControllerCount_Last = m_iTrackedControllerCount;
+        dprintf( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
+      }
+      UpdateHMDMatrixPose();
+    }
+
+  private:
+    cv::Mat hmd_panel_img[LR];
+    cv::Mat ros_img_resized[LR];
+    void processROSStereoImage(cv::Mat (&in)[LR], cv::Mat (&out)[LR]){
+      const double hmd_eye2panel_z[XY] = { (double)out[L].rows/2/tan(hmd_fov/2), (double)out[L].rows/2/tan(hmd_fov/2) };
+      const double cam_pic_size[LR][XY] = { { (double)in[L].cols, (double)in[L].rows }, { (double)in[R].cols, (double)in[R].rows } };
+      double cam_fov[LR][XY];
+      int cam_pic_size_on_hmd[LR][XY];
+      cv::Mat hmd_panel_roi[LR];
+      for(int i=0;i<LR;i++){
+        ROS_INFO_THROTTLE(3.0,"Process ROS image[%d] (%dx%d) with fov (%dx%d) to (%dx%d)", i, in[i].cols, in[i].rows, (int)cam_f[i][X], (int)cam_f[i][Y], out[i].cols, out[i].rows);
+        for(int j=0;j<XY;j++){
+          cam_fov[i][j] = 2 * atan( cam_pic_size[i][j]/2 / cam_f[i][j] );
+          cam_pic_size_on_hmd[i][j] = (int)( hmd_eye2panel_z[X] * 2 * tan(cam_fov[i][j]/2) );
+        }
+        cv::resize(in[i], ros_img_resized[i], cv::Size(cam_pic_size_on_hmd[i][X], cam_pic_size_on_hmd[i][Y]));
+        cv::flip(ros_img_resized[i], ros_img_resized[i], 0);
+        cv::Rect hmd_panel_area_rect( ros_img_resized[i].cols/2-out[i].cols/2, ros_img_resized[i].rows/2-out[i].rows/2, out[i].cols, out[i].rows);
+        cv::Rect ros_img_resized_rect( 0, 0, ros_img_resized[i].cols, ros_img_resized[i].rows);
+        cv::Point ros_img_resized_center(ros_img_resized[i].cols/2, ros_img_resized[i].rows/2);
+        cv::Rect cropped_rect;
+        if( !hmd_panel_area_rect.contains( cv::Point(ros_img_resized_rect.x, ros_img_resized_rect.y) )
+            || !hmd_panel_area_rect.contains( cv::Point(ros_img_resized_rect.x+ros_img_resized_rect.width,ros_img_resized_rect.y+ros_img_resized_rect.height) ) ){
+          ROS_WARN_THROTTLE(3.0,"Resized ROS image[%d] (%dx%d) exceed HMD eye texture (%dx%d) -> Cropping",i,cam_pic_size_on_hmd[i][X],cam_pic_size_on_hmd[i][Y],m_nRenderWidth,m_nRenderHeight);
+          cropped_rect = ros_img_resized_rect & hmd_panel_area_rect;
+          ros_img_resized[i] = ros_img_resized[i](cropped_rect);
+        }
+        cv::Rect hmd_panel_draw_rect( cropped_rect.x-hmd_panel_area_rect.x, cropped_rect.y-hmd_panel_area_rect.y, ros_img_resized[i].cols, ros_img_resized[i].rows);
+        ros_img_resized[i].copyTo(out[i](hmd_panel_draw_rect));
+      }
+    }
+
+    void UpdateTexturemaps(){
+      processROSStereoImage(ros_img, hmd_panel_img);
+      for(int i=0;i<LR;i++){
+        if(i==L)glBindTexture( GL_TEXTURE_2D, leftEyeDesc.m_nResolveTextureId );
+        else if(i==R)glBindTexture( GL_TEXTURE_2D, rightEyeDesc.m_nResolveTextureId );
+        else break;
+        int cur_tex_w,cur_tex_h;
+        glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_WIDTH , &cur_tex_w );
+        glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_HEIGHT , &cur_tex_h );
+        glTexSubImage2D( GL_TEXTURE_2D, 0, cur_tex_w/2 - hmd_panel_img[i].cols/2, cur_tex_h/2 - hmd_panel_img[i].rows/2, hmd_panel_img[i].cols, hmd_panel_img[i].rows, GL_RGB, GL_UNSIGNED_BYTE, hmd_panel_img[i].data );
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glBindTexture( GL_TEXTURE_2D, 0 );
+      }
+    }
+};
+
 
 class VIVEnode
 {
@@ -31,106 +133,12 @@ class VIVEnode
     void Run();
     void Shutdown();
     bool setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
-    void processROSStereoImage(cv::Mat (&in)[LR], cv::Mat (&out)[LR]){
-      //calc eye to HMD panel distance
-    //    const double hmd_eye2panel_z[XY] = { (double)hmd_panel_img[i].cols/2/tan(hmd_fov/2), (double)hmd_panel_img[i].rows/2/tan(hmd_fov/2) };
-      const double hmd_eye2panel_z[XY] = { (double)out[L].rows/2/tan(hmd_fov/2), (double)out[L].rows/2/tan(hmd_fov/2) };//[pixel]パネル距離水平垂直で違うのはおかしいので垂直画角を信じる
-      const double cam_pic_size[LR][XY] = { { (double)in[L].cols, (double)in[L].rows }, { (double)in[R].cols, (double)in[R].rows } };
-      double cam_fov[LR][XY];
-      int cam_pic_size_on_hmd[LR][XY];
-      cv::Mat hmd_panel_roi[LR];
-      const cv::Point parallax_adjust[LR] = {cv::Point(-50,0),cv::Point(+50,0)};//視差調整用
-      for(int i=L;i<LR;i++){
-        if(ros_image_isNew[i]){
-            for(int j=X;j<XY;j++){
-              cam_fov[i][j] = 2*atan( cam_pic_size[i][j]/2 / cam_f[i][j] );
-              cam_pic_size_on_hmd[i][j] = (int)( hmd_eye2panel_z[X] * 2*tan(cam_fov[i][j]/2) );
-            }
-            cv::resize(in[i], ros_image_stereo_resized[i], cv::Size(cam_pic_size_on_hmd[i][X],cam_pic_size_on_hmd[i][Y]));
-            cv::putText(ros_image_stereo_resized[i], txt_ros, cv::Point(0,500), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0,250,250), 2, CV_AA);
-            cv::flip(ros_image_stereo_resized[i],ros_image_stereo_resized[i],0);
-            float scale = 1.0;
-            // 画像の中心を求める
-            cv::Point2f center(ros_image_stereo_resized[i].cols / 2.0, ros_image_stereo_resized[i].rows / 2.0 - 500);
-            cv::Rect hmd_panel_area_rect( ros_image_stereo_resized[i].cols/2-out[i].cols/2, ros_image_stereo_resized[i].rows/2-out[i].rows/2, out[i].cols, out[i].rows);
-            hmd_panel_area_rect += parallax_adjust[i];
-            cv::Rect ros_image_stereo_resized_rect( 0, 0, ros_image_stereo_resized[i].cols, ros_image_stereo_resized[i].rows);
-            cv::Point ros_image_stereo_resized_center(ros_image_stereo_resized[i].cols/2, ros_image_stereo_resized[i].rows/2);
-            cv::Rect cropped_rect;
-            if( !hmd_panel_area_rect.contains( cv::Point(ros_image_stereo_resized_rect.x, ros_image_stereo_resized_rect.y) )
-                || !hmd_panel_area_rect.contains( cv::Point(ros_image_stereo_resized_rect.x+ros_image_stereo_resized_rect.width,ros_image_stereo_resized_rect.y+ros_image_stereo_resized_rect.height) ) ){
-              ROS_WARN_THROTTLE(3.0,"Resized ROS image[%d] (%dx%d (%+d,%+d)) exceed HMD eye texture (%dx%d) -> Cropping",i,cam_pic_size_on_hmd[i][X],cam_pic_size_on_hmd[i][Y],parallax_adjust[i].x,parallax_adjust[i].y,hmd_panel_size[X],hmd_panel_size[Y]);
-              cropped_rect = ros_image_stereo_resized_rect & hmd_panel_area_rect;
-              ros_image_stereo_resized[i] = ros_image_stereo_resized[i](cropped_rect);
-            }
-            cv::Rect hmd_panel_draw_rect( cropped_rect.x-hmd_panel_area_rect.x, cropped_rect.y-hmd_panel_area_rect.y, ros_image_stereo_resized[i].cols, ros_image_stereo_resized[i].rows);
-            ros_image_stereo_resized[i].copyTo(out[i](hmd_panel_draw_rect));
-        }
-      }
-    }
-    bool CMainApplication::UpdateTexturemaps(){
-      if(view_mode==IMAGE_VIEW_MODE::STEREO){
-        processROSStereoImage(ros_image_stereo, hmd_panel_img);
-        for(int i=L;i<LR;i++){
-          if(ros_image_isNew[i]){
-            int cur_tex_w,cur_tex_h;
-            glBindTexture( GL_TEXTURE_2D, m_EyeTexture[i] );
-            glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_WIDTH , &cur_tex_w );
-            glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_HEIGHT , &cur_tex_h );
-            glTexSubImage2D( GL_TEXTURE_2D, 0, cur_tex_w/2 - hmd_panel_img[i].cols/2, cur_tex_h/2 - hmd_panel_img[i].rows/2, hmd_panel_img[i].cols, hmd_panel_img[i].rows,GL_RGB, GL_UNSIGNED_BYTE, hmd_panel_img[i].data );
-            glGenerateMipmap(GL_TEXTURE_2D);
-            glBindTexture( GL_TEXTURE_2D, 0 );
-          }
-        }
-        return ( (m_EyeTexture[L]!=0) && (m_EyeTexture[R]!=0) );
-      }else{
-        glBindTexture( GL_TEXTURE_2D, m_iTexture );
-        glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, ros_image_monoeye.cols, ros_image_monoeye.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, ros_image_monoeye.data );
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
-        GLfloat fLargest;
-        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fLargest);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, fLargest);
-        glBindTexture( GL_TEXTURE_2D, 0 );
-        return ( m_iTexture != 0 );
-      }
-    }
-    void convertImage(const sensor_msgs::ImageConstPtr& msg, cv::Mat& out){
-      try {
-        out = cv_bridge::toCvCopy(msg,"rgb8")->image;
-      } catch (cv_bridge::Exception& e) {
-        ROS_ERROR_THROTTLE(30, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
-      }
-    }
-    void imageCb(const sensor_msgs::ImageConstPtr& msg){
-      convertImage(msg, pMainApplication->ros_image_monoeye);
-      t_cb_now = ros::WallTime::now();
-      ROS_INFO_STREAM_THROTTLE(3.0,"imageCb() subscribed "<<msg->width<<" x "<<msg->height<<" enc: "<<msg->encoding<<" @ "<<1.0/(t_cb_now - t_cb_old).toSec()<<" fps");
-      t_cb_old = t_cb_now;
-      ros_image_isNew_mono = true;
-    }
-    void imageCb_L(const sensor_msgs::ImageConstPtr& msg){
-      convertImage(msg, pMainApplication->ros_image_stereo[L]);
-      t_cb_l_now = ros::WallTime::now();
-      ROS_INFO_STREAM_THROTTLE(3.0,"imageCb_L() subscribed "<<msg->width<<" x "<<msg->height<<" enc: "<<msg->encoding<<" @ "<<1.0/(t_cb_l_now - t_cb_l_old).toSec()<<" fps");
-      t_cb_l_old = t_cb_l_now;
-      ros_image_isNew[L] = true;
-    }
-    void imageCb_R(const sensor_msgs::ImageConstPtr& msg){
-      convertImage(msg, pMainApplication->ros_image_stereo[R]);
-      t_cb_r_now = ros::WallTime::now();
-      ROS_INFO_STREAM_THROTTLE(3.0,"imageCb_R() subscribed "<<msg->width<<" x "<<msg->height<<" enc: "<<msg->encoding<<" @ "<<1.0/(t_cb_r_now - t_cb_r_old).toSec()<<" fps");
-      t_cb_r_old = t_cb_r_now;
-      ros_image_isNew[R] = true;
-    }
-    void infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg){ cam_f[L][0] = msg->K[0]; cam_f[L][1] = msg->K[4];}
-    void infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg){ cam_f[R][0] = msg->K[0]; cam_f[R][1] = msg->K[4];}
 
-  private:
+    CMainApplicationMod *pMainApplication;
+
     ros::NodeHandle nh_;
+  private:
+//    ros::NodeHandle nh_;
     ros::Rate loop_rate_;
 
     std::vector<double> world_offset_;
@@ -143,9 +151,6 @@ class VIVEnode
     ros::Publisher twist2_pub_;
 
     VRInterface vr_;
-    // for image
-//    enum {L, R, LR};
-	GLuint m_EyeTexture[LR];
 
 };
 
@@ -330,22 +335,88 @@ void VIVEnode::Run()
       //~ twist2_pub_.publish(twist_msg_stamped);
     //~ }
 
+    pMainApplication->HandleInput();
+    pMainApplication->RenderFrame();
+
+
     ros::spinOnce();
     loop_rate_.sleep();
   }
 }
 
+VIVEnode* nodeApp_p;
+
+void imageCb_L(const sensor_msgs::ImageConstPtr& msg){
+  if(msg->width > 0 && msg->height > 0 ){
+    try {
+      nodeApp_p->pMainApplication->ros_img[L] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+    } catch (cv_bridge::Exception& e) {
+      ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
+    }
+  }else{
+    ROS_WARN_THROTTLE(3, "Invalid image_left size (%dx%d) use default", msg->width, msg->height);
+  }
+}
+void imageCb_R(const sensor_msgs::ImageConstPtr& msg){
+  if(msg->width > 0 && msg->height > 0 ){
+    try {
+      nodeApp_p->pMainApplication->ros_img[R] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+    } catch (cv_bridge::Exception& e) {
+      ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
+    }
+  }else{
+    ROS_WARN_THROTTLE(3, "Invalid image_right size (%dx%d) use default", msg->width, msg->height);
+  }
+}
+void infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg){
+  if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){
+    nodeApp_p->pMainApplication->cam_f[L][0] = msg->K[0];
+    nodeApp_p->pMainApplication->cam_f[L][1] = msg->K[4];
+  }else{
+    ROS_WARN_THROTTLE(3, "Invalid camera_info_left fov (%fx%f) use default", msg->K[0], msg->K[4]);
+  }
+}
+void infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg){
+  if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){
+    nodeApp_p->pMainApplication->cam_f[R][0] = msg->K[0];
+    nodeApp_p->pMainApplication->cam_f[R][1] = msg->K[4];
+  }else{
+    ROS_WARN_THROTTLE(3, "Invalid camera_info_right fov (%fx%f) use default", msg->K[0], msg->K[4]);
+  }
+}
+
+
 // Main
 int main(int argc, char** argv){
   ros::init(argc, argv, "vive_node");
 
-  VIVEnode nodeApp(20);
+  VIVEnode nodeApp(60);
 
   if (!nodeApp.Init())
   {
     nodeApp.Shutdown();
     return 1;
   }
+
+  nodeApp_p = &nodeApp;
+
+  image_transport::ImageTransport it(nodeApp.nh_);
+  image_transport::Subscriber sub_L,sub_R;
+  ros::Subscriber sub_i_L,sub_i_R;
+  sub_L = it.subscribe("/image_left", 1, imageCb_L);
+  sub_R = it.subscribe("/image_right", 1, imageCb_R);
+  sub_i_L = nodeApp.nh_.subscribe("/camera_info_left", 1, infoCb_L);
+  sub_i_R = nodeApp.nh_.subscribe("/camera_info_right", 1, infoCb_R);
+
+  nodeApp.pMainApplication = new CMainApplicationMod( argc, argv );
+
+  if (!nodeApp.pMainApplication->BInit())
+  {
+    nodeApp.pMainApplication->Shutdown();
+    return 1;
+  }
+
+  nodeApp.pMainApplication->InitTextures();
 
   nodeApp.Run();
 

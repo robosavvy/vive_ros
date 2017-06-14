@@ -1,0 +1,17 @@
+#!/bin/bash
+export openvr=~/openvr
+export steam=~/.local/share/Steam
+export steamvr=$steam/steamapps/common/SteamVR
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\
+/usr/lib/:\
+/usr/lib32/:\
+$openvr/lib/linux32/:\
+$openvr/lib/linux64/:\
+$steam/ubuntu12_32/steam-runtime/i386/usr/lib/i386-linux-gnu/:\
+$steam/ubuntu12_32/steam-runtime/amd64/usr/lib/x86_64-linux-gnu/:\
+$steam/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu/:\
+$steam/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu/:\
+$steamvr/bin/linux32/:\
+$steamvr/bin/linux64/:\
+$steamvr/drivers/lighthouse/bin/linux32/:\
+$steamvr/drivers/lighthouse/bin/linux64/
