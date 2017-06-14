@@ -1,5 +1,5 @@
 #!/bin/bash
-export openvr=~/openvr
+export openvr=~/libraries/openvr
 export steam=~/.local/share/Steam
 export steamvr=$steam/steamapps/common/SteamVR
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\
