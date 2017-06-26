@@ -19,16 +19,19 @@
 
   <rosparam param="/vive/world_offset">[0, 0, 2]</rosparam>
   <rosparam param="/vive/world_yaw">0.0</rosparam>
+
+  <arg name="CAMERA_LEFT" default="use_cam"/>
+  <arg name="CAMERA_RIGHT" default="use_cam"/>
   
   <!-- <remap from="image_left" to="/multisense_local/left/image_rect_color"/> -->
   <!-- <remap from="image_right" to="/multisense_local/right/image_rect"/> -->
   <!-- <remap from="camera_info_left" to="/multisense_local/left/camera_info"/> -->
   <!-- <remap from="camera_info_right" to="/multisense_local/right/camera_info"/> -->
   
-  <remap from="image_left" to="/usb_cam/image_raw"/>
-  <remap from="image_right" to="/usb_cam/image_raw"/>
-  <remap from="camera_info_left" to="/usb_cam/camera_info"/>
-  <remap from="camera_info_right" to="/usb_cam/camera_info"/>
+  <remap from="image_left" to="/$(arg CAMERA_LEFT)/image_raw"/>
+  <remap from="image_right" to="/$(arg CAMERA_RIGHT)/image_raw"/>
+  <remap from="camera_info_left" to="/$(arg CAMERA_LEFT)/camera_info"/>
+  <remap from="camera_info_right" to="/$(arg CAMERA_RIGHT)/camera_info"/>
   
   <node name="vive_node" pkg="vive_ros" type="vive_node" output="screen" required="true"/>
 </launch>

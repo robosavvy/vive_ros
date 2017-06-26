@@ -37,20 +37,17 @@ find_package(GTK2)
 add_definitions(-DHAVE_GTK)
 include_directories(${GTK2_INCLUDE_DIRS})
 
-# find_package(OpenCV REQUIRED)
-# include_directories(${OpenCV_INCLUDE_DIRS})
-
 
 ###################################
 ## catkin specific configuration ##
 ###################################
 #catkin_package()
 catkin_package(
-  INCLUDE_DIRS #include
-  LIBRARIES #${PROJECT_NAME}
-  CATKIN_DEPENDS cv_bridge#roscpp
-  DEPENDS #cv_bridge
-  )
+  INCLUDE_DIRS
+  LIBRARIES
+  CATKIN_DEPENDS cv_bridge
+  DEPENDS
+)
 
 ###########
 ## Build ##
@@ -78,9 +75,6 @@ target_link_libraries(vive_node
   ${GLEW_LIBRARIES}
   ${GTK2_LIBRARIES}
   ${SDL2_LIBRARY}
-  ${OpenCV_LIBS}
-#  dl
   GL
-#  GLU
 )
 
