@@ -136,8 +136,9 @@ void VIVEnode::Run()
     vr_.Update();
 
     int controller_count = 1;
+    int tracker_count = 1;
     int lighthouse_count = 1;
-    for (int i=0; i<5; i++)
+    for (int i=0; i<vr::k_unMaxTrackedDeviceCount; i++)
     {
       int dev_type = vr_.GetDeviceMatrix(i, tf_matrix);
 
@@ -164,6 +165,11 @@ void VIVEnode::Run()
       if (dev_type == 2)
       {
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller"+std::to_string(controller_count++)));
+      }
+      // It's a tracker
+      if (dev_type == 3)
+      {
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "tracker"+std::to_string(tracker_count++)));
       }
       // It's a lighthouse
       if (dev_type == 4)

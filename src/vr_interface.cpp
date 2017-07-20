@@ -24,6 +24,7 @@ std::map<vr::ChaperoneCalibrationState, std::string> mapChaperonStrings
   { vr::ChaperoneCalibrationState_Warning_SeatedBoundsInvalid, "Seated bounds haven't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error, "The UniverseID is invalid" },
   { vr::ChaperoneCalibrationState_Error_BaseStationUninitalized, "Tracking center hasn't be calibrated for at least one of the base stations" },
+//  { vr::ChaperoneCalibrationState_Error_BaseStationUninitialized, "Tracking center hasn't be calibrated for at least one of the base stations" },
   { vr::ChaperoneCalibrationState_Error_BaseStationConflict, "Tracking center is calibrated, but base stations disagree on the tracking space" },
   { vr::ChaperoneCalibrationState_Error_PlayAreaInvalid, "Play Area hasn't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error_CollisionBoundsInvalid, "Collision Bounds haven't been calibrated for the current tracking center" }
@@ -33,7 +34,7 @@ VRInterface::VRInterface()
   : error_(defaultErrorMsgCallback)
   , debug_(defaultDebugMsgCallback)
   , info_(defaultInfoMsgCallback)
-  , max_devices_(5) // or vr::k_unMaxTrackedDeviceCount
+  , max_devices_(vr::k_unMaxTrackedDeviceCount) // or vr::k_unMaxTrackedDeviceCount
 {
   play_area_[0] = -1;
   play_area_[1] = -1;
