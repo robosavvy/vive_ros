@@ -1,17 +1,78 @@
 <?xml version="1.0"?>
 <launch>
-  <env name="OPENVR" value="$(env HOME)/libraries/openvr"/>
-  <env name="STEAM" value="$(env HOME)/.local/share/Steam"/>
-  <env name="STEAMVR" value="$(env HOME)/.local/share/Steam/steamapps/common/SteamVR"/>
-  <!-- Everything! -->
-<!--
-  <env name="LD_LIBRARY_PATH" value="$(env LD_LIBRARY_PATH):$(env HOME)/libraries/openvr/lib/linux32:$(env HOME)/libraries/openvr/lib/linux64/:\$(env HOME)/.local/share/Steam/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu:$(env HOME)/.local/share/Steam/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/bin/linux32:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/bin/linux64:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux32:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux64:"/>
+  <arg name="OPENVR"  value="$(env HOME)/openvr"/>
+  <arg name="STEAM"   value="$(env HOME)/.local/share/Steam"/>
+  <arg name="STEAMVR" value="$(arg STEAM)/steamapps/common/SteamVR"/>
+
+  <env name="OPENVR"  value="$(arg OPENVR)"/>
+  <env name="STEAM"   value="$(arg STEAM)"/>
+  <env name="STEAMVR" value="$(arg STEAMVR)"/>
+
+  <!-- <env name="LD_LIBRARY_PATH" value="$(env LD_LIBRARY_PATH):/usr/lib/:/usr/lib32/:$(arg OPENVR)/lib/linux32/:$(arg OPENVR)/lib/linux64/:$(arg STEAM)/ubuntu12_32/steam-runtime/i386/usr/lib/i386-linux-gnu/:$(arg STEAM)/ubuntu12_32/steam-runtime/amd64/usr/lib/x86_64-linux-gnu/:$(arg STEAM)/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu/:$(arg STEAM)/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu/:$(arg STEAMVR)/bin/linux32/:$(arg STEAMVR)/bin/linux64/:$(arg STEAMVR)/drivers/lighthouse/bin/linux32/:$(arg STEAMVR)/drivers/lighthouse/bin/linux64/"/> -->
+
+<!-- 
+$(env LD_LIBRARY_PATH):
+/usr/lib/:
+/usr/lib32/:
+$(arg OPENVR)/lib/linux32/:
+$(arg OPENVR)/lib/linux64/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/i386/usr/lib/i386-linux-gnu/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/amd64/usr/lib/x86_64-linux-gnu/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu/:
+$(arg STEAMVR)/bin/linux32/:
+$(arg STEAMVR)/bin/linux64/:
+$(arg STEAMVR)/drivers/lighthouse/bin/linux32/:
+$(arg STEAMVR)/drivers/lighthouse/bin/linux64/
+
+
+$(env LD_LIBRARY_PATH):
+/usr/lib/:
+/usr/lib32/:
+$(arg OPENVR)/lib/linux32/:
+$(arg OPENVR)/lib/linux64/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/i386/usr/lib/i386-linux-gnu/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/amd64/usr/lib/x86_64-linux-gnu/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu/:
+$(arg STEAM)/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu/:
+$(arg STEAMVR)/bin/linux32/:
+$(arg STEAMVR)/bin/linux64/:
+$(arg STEAMVR)/drivers/lighthouse/bin/linux32/:
+$(arg STEAMVR)/drivers/lighthouse/bin/linux64/
+
+
+TOP=/home/leus/.steam/ubuntu12_32/steam-runtime
+
+$(arg OPENVR)/lib/linux32/:
+$(arg OPENVR)/lib/linux64/:
+${TOP}/amd64/lib/x86_64-linux-gnu:
+${TOP}/amd64/lib:
+${TOP}/amd64/usr/lib/x86_64-linux-gnu:
+${TOP}/amd64/usr/lib:
+${TOP}/i386/lib/i386-linux-gnu:
+${TOP}/i386/lib:
+${TOP}/i386/usr/lib/i386-linux-gnu:
+${TOP}/i386/usr/lib:
+${LD_LIBRARY_PATH}
+
+
+
 -->
-  <!-- For a 64bit system -->
-  <env name="LD_LIBRARY_PATH" value="$(env LD_LIBRARY_PATH):$(env HOME)/libraries/openvr/lib/linux64:$(env HOME)/.local/share/Steam/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/bin/linux64:$(env HOME)/.local/share/Steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux64"/>
+
+  <arg name="TOP"  value="$(env HOME)/.steam/ubuntu12_32/steam-runtime"/>
+  <!-- <env name="LD_LIBRARY_PATH" value="$(arg OPENVR)/lib/linux32/:$(arg OPENVR)/lib/linux64/:$(arg TOP)/amd64/lib/x86_64-linux-gnu:$(arg TOP)/amd64/lib:(arg TOP)/amd64/usr/lib/x86_64-linux-gnu:(arg TOP)/amd64/usr/lib:(arg TOP)/i386/lib/i386-linux-gnu:(arg TOP)/i386/lib:(arg TOP)/i386/usr/lib/i386-linux-gnu:(arg TOP)/i386/usr/lib:(env LD_LIBRARY_PATH)"/> -->
+  <env name="LD_LIBRARY_PATH" value="$(arg OPENVR)/lib/linux32/:$(arg OPENVR)/lib/linux64/:$(arg TOP)/amd64/lib/x86_64-linux-gnu:$(arg TOP)/amd64/lib:$(arg TOP)/amd64/usr/lib/x86_64-linux-gnu:$(arg TOP)/amd64/usr/lib:$(arg TOP)/i386/lib/i386-linux-gnu:$(arg TOP)/i386/lib:$(arg TOP)/i386/usr/lib/i386-linux-gnu:$(arg TOP)/i386/usr/lib:$(env LD_LIBRARY_PATH)"/>
+
+
+
+  <arg name="TF"   		default="false"/>
+  <arg name="DEBUG"   		default="false"/>
+  <arg name="MODE"   		default="normal"/>
 
   <rosparam param="/vive/world_offset">[0, 0, 2]</rosparam>
   <rosparam param="/vive/world_yaw">0.0</rosparam>
-  
+
   <node name="vive_node" pkg="vive_ros" type="vive_node" output="screen" required="true"/>
+
+
 </launch>

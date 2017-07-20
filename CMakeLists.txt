@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 set(CMAKE_BUILD_TYPE "Release")
 
 # TODO: make find script, to use find_package(openvr REQUIRED)
-set(OPENVR "$ENV{HOME}/libraries/openvr")
+set(OPENVR "$ENV{HOME}/openvr_ch")
 find_library(OPENVR_LIB openvr_api "${OPENVR}/lib/linux64" NO_DEFAULT_PATH)
 message("Found libopenvr_api: ${OPENVR_LIB}")
 
