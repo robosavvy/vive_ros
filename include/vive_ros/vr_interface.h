@@ -30,9 +30,9 @@ class VRInterface
     void setInfoMsgCallback(InfoMsgCallback fn);
     void setDebugMsgCallback(DebugMsgCallback fn);
     
-    
-  private:
     vr::IVRSystem *pHMD_;
+
+  private:
     vr::IVRChaperone *pChaperone_;
     
     uint max_devices_;

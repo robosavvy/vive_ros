@@ -126,6 +126,17 @@ bool VIVEnode::setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Respo
   return true;
 }
 
+std::string GetTrackedDeviceString( vr::IVRSystem *pHmd, vr::TrackedDeviceIndex_t unDevice, vr::TrackedDeviceProperty prop, vr::TrackedPropertyError *peError = NULL ){
+  uint32_t unRequiredBufferLen = pHmd->GetStringTrackedDeviceProperty( unDevice, prop, NULL, 0, peError );
+  if( unRequiredBufferLen == 0 )return "";
+  char *pchBuffer = new char[ unRequiredBufferLen ];
+  unRequiredBufferLen = pHmd->GetStringTrackedDeviceProperty( unDevice, prop, pchBuffer, unRequiredBufferLen, peError );
+  std::string sResult = pchBuffer;
+  delete [] pchBuffer;
+  return sResult;
+}
+
+
 void VIVEnode::Run()
 {
   double tf_matrix[3][4];
@@ -155,6 +166,9 @@ void VIVEnode::Run()
 
       rot_matrix.getRotation(quat);
       tf.setRotation(quat);
+      //get device serial number
+      std::string cur_sn = GetTrackedDeviceString( vr_.pHMD_, i, vr::Prop_SerialNumber_String );
+      std::replace(cur_sn.begin(), cur_sn.end(), '-', '_');
 
       // It's a HMD
       if (dev_type == 1)
@@ -164,17 +178,18 @@ void VIVEnode::Run()
       // It's a controller
       if (dev_type == 2)
       {
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller"+std::to_string(controller_count++)));
+//        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller"+std::to_string(controller_count++)));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller_"+cur_sn));
       }
       // It's a tracker
       if (dev_type == 3)
       {
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "tracker"+std::to_string(tracker_count++)));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "tracker_"+cur_sn));
       }
       // It's a lighthouse
       if (dev_type == 4)
       {
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "lighthouse"+std::to_string(lighthouse_count++)));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "lighthouse_"+cur_sn));
       }
 
     }
