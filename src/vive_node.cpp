@@ -37,7 +37,7 @@ class VIVEnode
     ros::ServiceServer set_origin_server_;
     ros::Publisher twist1_pub_;
     ros::Publisher twist2_pub_;
-    ros::Publisher button_states_pubs_[vr::k_unMaxTrackedDeviceCount];
+    std::map<std::string, ros::Publisher> button_states_pubs_map;
     ros::Subscriber feedback_sub_;
 
     VRInterface vr_;
@@ -59,12 +59,6 @@ VIVEnode::VIVEnode(int rate)
   ROS_INFO(" [VIVE] World offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
 
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
-
-  for(vr::TrackedDeviceIndex_t unDevice = 0; unDevice < vr::k_unMaxTrackedDeviceCount; unDevice++) {
-    button_states_pubs_[unDevice] = nh_.advertise<sensor_msgs::Joy>(std::string("/vive/joy") + boost::lexical_cast<std::string>(unDevice), 10);
-  }
-  //~ twist1_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist1", 10);
-  //~ twist2_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist2", 10);
 
   feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
 
@@ -195,31 +189,30 @@ void VIVEnode::Run()
       // It's a controller
       if (dev_type == 2)
       {
-//        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller"+std::to_string(controller_count++)));
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller_"+cur_sn));
 
         vr::VRControllerState_t state;
         vr_.HandleInput(i, state);
-
         sensor_msgs::Joy joy;
         joy.header.stamp = ros::Time::now();
-        joy.header.frame_id = "";
-
+        joy.header.frame_id = "controller_"+cur_sn;
         joy.buttons.assign(BUTTON_NUM, 0);
         joy.axes.assign(AXES_NUM, 0.0); // x-axis, y-axis
-        if(HTC_VIVE_MENU_BUTTON & state.ulButtonPressed)
+        if((1LL << vr::k_EButton_ApplicationMenu) & state.ulButtonPressed)
           joy.buttons[0] = 1;
-        if(HTC_VIVE_TRIGGER_BUTTON & state.ulButtonPressed)
+        if((1LL << vr::k_EButton_SteamVR_Trigger) & state.ulButtonPressed)
           joy.buttons[1] = 1;
-        if(HTC_VIVE_TRACKPAD_BUTTON & state.ulButtonPressed)
+        if((1LL << vr::k_EButton_SteamVR_Touchpad) & state.ulButtonPressed)
           joy.buttons[2] = 1;
-        if(HTC_VIVE_GRIP_BUTTON & state.ulButtonPressed)
+        if((1LL << vr::k_EButton_Grip) & state.ulButtonPressed)
           joy.buttons[3] = 1;
         // TrackPad's axis
         joy.axes[0] = state.rAxis[0].x;
         joy.axes[1] = state.rAxis[0].y;
-        button_states_pubs_[i].publish(joy);
-
+        if(button_states_pubs_map.count(cur_sn) == 0){
+          button_states_pubs_map[cur_sn] = nh_.advertise<sensor_msgs::Joy>("/vive/controller_"+cur_sn+"/joy", 10);
+        }
+        button_states_pubs_map[cur_sn].publish(joy);
       }
       // It's a tracker
       if (dev_type == 3)

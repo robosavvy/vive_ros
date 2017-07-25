@@ -10,10 +10,6 @@ typedef boost::function<void(const std::string&)> ErrorMsgCallback;
 
 const int BUTTON_NUM = 4;
 const int AXES_NUM = 2;
-const long long int HTC_VIVE_MENU_BUTTON = (1LL << 1);
-const long long int HTC_VIVE_TRIGGER_BUTTON = (1LL << 33);
-const long long int HTC_VIVE_TRACKPAD_BUTTON = (1LL << 32);
-const long long int HTC_VIVE_GRIP_BUTTON = (1LL << 2);
 
 class VRInterface
 {
@@ -33,14 +29,11 @@ class VRInterface
     int GetDeviceVel(int index, double lin_vel[3], double ang_vel[3]);
     bool IsDeviceConnected(int index);
     
-    
     void setErrorMsgCallback(ErrorMsgCallback fn);
     void setInfoMsgCallback(InfoMsgCallback fn);
     void setDebugMsgCallback(DebugMsgCallback fn);
 
     vr::IVRSystem *pHMD_;
-
-//    vr::VRControllerState_t trackedDeviceStates[vr::k_unMaxTrackedDeviceCount];
 
   private:
     vr::IVRChaperone *pChaperone_;

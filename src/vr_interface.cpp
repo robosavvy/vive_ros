@@ -23,7 +23,6 @@ std::map<vr::ChaperoneCalibrationState, std::string> mapChaperonStrings
   { vr::ChaperoneCalibrationState_Warning_BaseStationRemoved, "There are less base stations than when calibrated" },
   { vr::ChaperoneCalibrationState_Warning_SeatedBoundsInvalid, "Seated bounds haven't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error, "The UniverseID is invalid" },
-//  { vr::ChaperoneCalibrationState_Error_BaseStationUninitalized, "Tracking center hasn't be calibrated for at least one of the base stations" },
   { vr::ChaperoneCalibrationState_Error_BaseStationUninitialized, "Tracking center hasn't be calibrated for at least one of the base stations" },
   { vr::ChaperoneCalibrationState_Error_BaseStationConflict, "Tracking center is calibrated, but base stations disagree on the tracking space" },
   { vr::ChaperoneCalibrationState_Error_PlayAreaInvalid, "Play Area hasn't been calibrated for the current tracking center" },
@@ -60,8 +59,8 @@ bool VRInterface::Init()
   if (eError != vr::VRInitError_None)
   {
     pHMD_ = NULL;
-    error_("VR_Init Failed.");
-    std::cout<<eError<<std::endl;
+    std::string err_msg = "VR_Init Failed. EVRInitError = "+eError;
+    error_(err_msg);
     return false;
   }
 
