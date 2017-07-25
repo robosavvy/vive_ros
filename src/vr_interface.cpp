@@ -61,6 +61,7 @@ bool VRInterface::Init()
   {
     pHMD_ = NULL;
     error_("VR_Init Failed.");
+    std::cout<<eError<<std::endl;
     return false;
   }
 
