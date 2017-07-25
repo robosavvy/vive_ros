@@ -6,6 +6,9 @@
 #include "vive_ros/vr_interface.h"
 
 #include <geometry_msgs/TwistStamped.h>
+#include <sensor_msgs/Joy.h>
+#include <sensor_msgs/JoyFeedback.h>
+#include <boost/lexical_cast.hpp>
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
@@ -20,6 +23,7 @@ class VIVEnode
     void Run();
     void Shutdown();
     bool setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+    void set_feedback(sensor_msgs::JoyFeedbackConstPtr msg);
 
   private:
     ros::NodeHandle nh_;
@@ -33,6 +37,8 @@ class VIVEnode
     ros::ServiceServer set_origin_server_;
     ros::Publisher twist1_pub_;
     ros::Publisher twist2_pub_;
+    ros::Publisher button_states_pubs_[vr::k_unMaxTrackedDeviceCount];
+    ros::Subscriber feedback_sub_;
 
     VRInterface vr_;
 
@@ -54,8 +60,13 @@ VIVEnode::VIVEnode(int rate)
 
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
 
+  for(vr::TrackedDeviceIndex_t unDevice = 0; unDevice < vr::k_unMaxTrackedDeviceCount; unDevice++) {
+    button_states_pubs_[unDevice] = nh_.advertise<sensor_msgs::Joy>(std::string("/vive/joy") + boost::lexical_cast<std::string>(unDevice), 10);
+  }
   //~ twist1_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist1", 10);
   //~ twist2_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist2", 10);
+
+  feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
 
   return;
 }
@@ -136,6 +147,12 @@ std::string GetTrackedDeviceString( vr::IVRSystem *pHmd, vr::TrackedDeviceIndex_
   return sResult;
 }
 
+void VIVEnode::set_feedback(sensor_msgs::JoyFeedbackConstPtr msg) {
+  if(msg->type == 1 /* TYPE_RUMBLE */) {
+    vr_.TriggerHapticPulse(msg->id, 0, (int)(msg->intensity));
+  }
+}
+
 
 void VIVEnode::Run()
 {
@@ -180,6 +197,29 @@ void VIVEnode::Run()
       {
 //        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller"+std::to_string(controller_count++)));
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller_"+cur_sn));
+
+        vr::VRControllerState_t state;
+        vr_.HandleInput(i, state);
+
+        sensor_msgs::Joy joy;
+        joy.header.stamp = ros::Time::now();
+        joy.header.frame_id = "";
+
+        joy.buttons.assign(BUTTON_NUM, 0);
+        joy.axes.assign(AXES_NUM, 0.0); // x-axis, y-axis
+        if(HTC_VIVE_MENU_BUTTON & state.ulButtonPressed)
+          joy.buttons[0] = 1;
+        if(HTC_VIVE_TRIGGER_BUTTON & state.ulButtonPressed)
+          joy.buttons[1] = 1;
+        if(HTC_VIVE_TRACKPAD_BUTTON & state.ulButtonPressed)
+          joy.buttons[2] = 1;
+        if(HTC_VIVE_GRIP_BUTTON & state.ulButtonPressed)
+          joy.buttons[3] = 1;
+        // TrackPad's axis
+        joy.axes[0] = state.rAxis[0].x;
+        joy.axes[1] = state.rAxis[0].y;
+        button_states_pubs_[i].publish(joy);
+
       }
       // It's a tracker
       if (dev_type == 3)
@@ -202,43 +242,6 @@ void VIVEnode::Run()
     tf_world.setRotation(quat_world);
 
     tf_broadcaster_.sendTransform(tf::StampedTransform(tf_world, ros::Time::now(), "world", "world_vive"));
-
-    // Publish twist messages for controller1 and controller2
-    //~ double lin_vel[3], ang_vel[3];
-    //~ if (vr_.GetDeviceVel(1, lin_vel, ang_vel))
-    //~ {
-      //~ geometry_msgs::Twist twist_msg;
-      //~ twist_msg.linear.x = lin_vel[0];
-      //~ twist_msg.linear.y = lin_vel[1];
-      //~ twist_msg.linear.z = lin_vel[2];
-      //~ twist_msg.angular.x = ang_vel[0];
-      //~ twist_msg.angular.y = ang_vel[1];
-      //~ twist_msg.angular.z = ang_vel[2];
-
-      //~ geometry_msgs::TwistStamped twist_msg_stamped;
-      //~ twist_msg_stamped.header.stamp = ros::Time::now();
-      //~ twist_msg_stamped.header.frame_id = "world_vive";
-      //~ twist_msg_stamped.twist = twist_msg;
-
-      //~ twist1_pub_.publish(twist_msg_stamped);
-    //~ }
-    //~ if (vr_.GetDeviceVel(2, lin_vel, ang_vel))
-    //~ {
-      //~ geometry_msgs::Twist twist_msg;
-      //~ twist_msg.linear.x = lin_vel[0];
-      //~ twist_msg.linear.y = lin_vel[1];
-      //~ twist_msg.linear.z = lin_vel[2];
-      //~ twist_msg.angular.x = ang_vel[0];
-      //~ twist_msg.angular.y = ang_vel[1];
-      //~ twist_msg.angular.z = ang_vel[2];
-
-      //~ geometry_msgs::TwistStamped twist_msg_stamped;
-      //~ twist_msg_stamped.header.stamp = ros::Time::now();
-      //~ twist_msg_stamped.header.frame_id = "world_vive";
-      //~ twist_msg_stamped.twist = twist_msg;
-
-      //~ twist2_pub_.publish(twist_msg_stamped);
-    //~ }
 
     ros::spinOnce();
     loop_rate_.sleep();
