@@ -9,7 +9,7 @@ typedef boost::function<void(const std::string&)> InfoMsgCallback;
 typedef boost::function<void(const std::string&)> ErrorMsgCallback;
 
 const int BUTTON_NUM = 4;
-const int AXES_NUM = 2;
+const int AXES_NUM = 3;
 
 class VRInterface
 {

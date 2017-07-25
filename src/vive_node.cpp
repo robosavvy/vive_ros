@@ -209,6 +209,11 @@ void VIVEnode::Run()
         // TrackPad's axis
         joy.axes[0] = state.rAxis[0].x;
         joy.axes[1] = state.rAxis[0].y;
+        // Trigger's axis
+        joy.axes[3] = state.rAxis[1].x;
+//        #include <bitset> // bit debug
+//        std::cout << static_cast<std::bitset<64> >(state.ulButtonPressed) << std::endl;
+//        std::cout << static_cast<std::bitset<64> >(state.ulButtonTouched) << std::endl;
         if(button_states_pubs_map.count(cur_sn) == 0){
           button_states_pubs_map[cur_sn] = nh_.advertise<sensor_msgs::Joy>("/vive/controller_"+cur_sn+"/joy", 10);
         }
