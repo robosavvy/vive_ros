@@ -11,11 +11,10 @@ void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_s
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
 
-#include "vive_ros/hellovr_opengl_main.h"
-
-#define USE_IMAGE
+//#define USE_IMAGE
 
 #ifdef USE_IMAGE
+#include "vive_ros/hellovr_opengl_main.h"
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -178,6 +177,20 @@ class CMainApplicationMod : public CMainApplication
       }
     }
 };
+#else
+// import from opengl sample
+std::string GetTrackedDeviceString( vr::IVRSystem *pHmd, vr::TrackedDeviceIndex_t unDevice, vr::TrackedDeviceProperty prop, vr::TrackedPropertyError *peError = NULL )
+{
+  uint32_t unRequiredBufferLen = pHmd->GetStringTrackedDeviceProperty( unDevice, prop, NULL, 0, peError );
+  if( unRequiredBufferLen == 0 )
+    return "";
+
+  char *pchBuffer = new char[ unRequiredBufferLen ];
+  unRequiredBufferLen = pHmd->GetStringTrackedDeviceProperty( unDevice, prop, pchBuffer, unRequiredBufferLen, peError );
+  std::string sResult = pchBuffer;
+  delete [] pchBuffer;
+  return sResult;
+}
 #endif
 
 
@@ -191,19 +204,23 @@ class VIVEnode
     void Shutdown();
     bool setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
     void set_feedback(sensor_msgs::JoyFeedbackConstPtr msg);
-
-#ifdef USE_IMAGE
-    CMainApplicationMod *pMainApplication;
-#endif
     ros::NodeHandle nh_;
     VRInterface vr_;
 
+#ifdef USE_IMAGE
+    void imageCb_L(const sensor_msgs::ImageConstPtr& msg);
+    void imageCb_R(const sensor_msgs::ImageConstPtr& msg);
+    void infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg);
+    void infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg);
+    CMainApplicationMod *pMainApplication;
+    image_transport::Subscriber sub_L,sub_R;
+    ros::Subscriber sub_i_L,sub_i_R;
+#endif
+
   private:
     ros::Rate loop_rate_;
-
     std::vector<double> world_offset_;
     double world_yaw_;
-
     tf::TransformBroadcaster tf_broadcaster_;
     tf::TransformListener tf_listener_;
     ros::ServiceServer set_origin_server_;
@@ -221,14 +238,26 @@ VIVEnode::VIVEnode(int rate)
   , world_offset_({0, 0, 0})
   , world_yaw_(0)
 {
-
   nh_.getParam("/vive/world_offset", world_offset_);
   nh_.getParam("/vive/world_yaw", world_yaw_);
   ROS_INFO(" [VIVE] World offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
-
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
-
   feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
+
+#ifdef USE_IMAGE
+  image_transport::ImageTransport it(nh_);
+  sub_L = it.subscribe("/image_left", 1, &VIVEnode::imageCb_L, this);
+  sub_R = it.subscribe("/image_right", 1, &VIVEnode::imageCb_R, this);
+  sub_i_L = nh_.subscribe("/camera_info_left", 1, &VIVEnode::infoCb_L, this);
+  sub_i_R = nh_.subscribe("/camera_info_right", 1, &VIVEnode::infoCb_R, this);
+  pMainApplication = new CMainApplicationMod( 0, NULL );
+  if (!pMainApplication->BInit()){
+    pMainApplication->Shutdown();
+    Shutdown();
+  }
+  pMainApplication->vr_p = &(vr_);
+  pMainApplication->InitTextures();
+#endif
 
   return;
 }
@@ -302,6 +331,8 @@ bool VIVEnode::setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Respo
 void VIVEnode::set_feedback(sensor_msgs::JoyFeedbackConstPtr msg) {
   if(msg->type == 1 /* TYPE_RUMBLE */) {
     vr_.TriggerHapticPulse(msg->id, 0, (int)(msg->intensity));
+    for(int i=0;i<16;i++)
+      vr_.TriggerHapticPulse(i, 0, (int)(msg->intensity));
   }
 }
 
@@ -412,11 +443,10 @@ void VIVEnode::Run()
 }
 
 #ifdef USE_IMAGE
-VIVEnode* nodeApp_p;
-void imageCb_L(const sensor_msgs::ImageConstPtr& msg){
+void VIVEnode::imageCb_L(const sensor_msgs::ImageConstPtr& msg){
   if(msg->width > 0 && msg->height > 0 ){
     try {
-      nodeApp_p->pMainApplication->ros_img[L] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+      pMainApplication->ros_img[L] = cv_bridge::toCvCopy(msg,"rgb8")->image;
     } catch (cv_bridge::Exception& e) {
       ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
     }
@@ -424,10 +454,10 @@ void imageCb_L(const sensor_msgs::ImageConstPtr& msg){
     ROS_WARN_THROTTLE(3, "Invalid image_left size (%dx%d) use default", msg->width, msg->height);
   }
 }
-void imageCb_R(const sensor_msgs::ImageConstPtr& msg){
+void VIVEnode::imageCb_R(const sensor_msgs::ImageConstPtr& msg){
   if(msg->width > 0 && msg->height > 0 ){
     try {
-      nodeApp_p->pMainApplication->ros_img[R] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+      pMainApplication->ros_img[R] = cv_bridge::toCvCopy(msg,"rgb8")->image;
     } catch (cv_bridge::Exception& e) {
       ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
     }
@@ -435,18 +465,18 @@ void imageCb_R(const sensor_msgs::ImageConstPtr& msg){
     ROS_WARN_THROTTLE(3, "Invalid image_right size (%dx%d) use default", msg->width, msg->height);
   }
 }
-void infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg){
+void VIVEnode::infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg){
   if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){
-    nodeApp_p->pMainApplication->cam_f[L][0] = msg->K[0];
-    nodeApp_p->pMainApplication->cam_f[L][1] = msg->K[4];
+    pMainApplication->cam_f[L][0] = msg->K[0];
+    pMainApplication->cam_f[L][1] = msg->K[4];
   }else{
     ROS_WARN_THROTTLE(3, "Invalid camera_info_left fov (%fx%f) use default", msg->K[0], msg->K[4]);
   }
 }
-void infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg){
+void VIVEnode::infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg){
   if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){
-    nodeApp_p->pMainApplication->cam_f[R][0] = msg->K[0];
-    nodeApp_p->pMainApplication->cam_f[R][1] = msg->K[4];
+    pMainApplication->cam_f[R][0] = msg->K[0];
+    pMainApplication->cam_f[R][1] = msg->K[4];
   }else{
     ROS_WARN_THROTTLE(3, "Invalid camera_info_right fov (%fx%f) use default", msg->K[0], msg->K[4]);
   }
@@ -467,23 +497,6 @@ int main(int argc, char** argv){
     nodeApp.Shutdown();
     return 1;
   }
-#ifdef USE_IMAGE
-  nodeApp_p = &nodeApp;
-  image_transport::ImageTransport it(nodeApp.nh_);
-  image_transport::Subscriber sub_L,sub_R;
-  ros::Subscriber sub_i_L,sub_i_R;
-  sub_L = it.subscribe("/image_left", 1, imageCb_L);
-  sub_R = it.subscribe("/image_right", 1, imageCb_R);
-  sub_i_L = nodeApp.nh_.subscribe("/camera_info_left", 1, infoCb_L);
-  sub_i_R = nodeApp.nh_.subscribe("/camera_info_right", 1, infoCb_R);
-  nodeApp.pMainApplication = new CMainApplicationMod( argc, argv );
-  if (!nodeApp.pMainApplication->BInit()){
-    nodeApp.pMainApplication->Shutdown();
-    return 1;
-  }
-  nodeApp.pMainApplication->vr_p = &(nodeApp.vr_);
-  nodeApp.pMainApplication->InitTextures();
-#endif
 
   nodeApp.Run();
   nodeApp.Shutdown();
