@@ -34,12 +34,12 @@ class VRInterface
     void setDebugMsgCallback(DebugMsgCallback fn);
 
     vr::IVRSystem *pHMD_;
+    vr::TrackedDevicePose_t device_poses_[vr::k_unMaxTrackedDeviceCount];
 
   private:
     vr::IVRChaperone *pChaperone_;
     
     uint max_devices_;
-    vr::TrackedDevicePose_t device_poses_[vr::k_unMaxTrackedDeviceCount];
     
   private:
     DebugMsgCallback debug_;
