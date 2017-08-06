@@ -210,7 +210,7 @@ void VIVEnode::Run()
         joy.axes[0] = state.rAxis[0].x;
         joy.axes[1] = state.rAxis[0].y;
         // Trigger's axis
-        joy.axes[3] = state.rAxis[1].x;
+        joy.axes[2] = state.rAxis[1].x;
 //        #include <bitset> // bit debug
 //        std::cout << static_cast<std::bitset<64> >(state.ulButtonPressed) << std::endl;
 //        std::cout << static_cast<std::bitset<64> >(state.ulButtonTouched) << std::endl;
@@ -250,7 +250,7 @@ void VIVEnode::Run()
 int main(int argc, char** argv){
   ros::init(argc, argv, "vive_node");
 
-  VIVEnode nodeApp(20);
+  VIVEnode nodeApp(200);
 
   if (!nodeApp.Init())
   {
