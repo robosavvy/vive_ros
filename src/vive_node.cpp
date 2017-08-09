@@ -11,10 +11,11 @@ void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_s
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
 
-//#define USE_IMAGE
+#define USE_IMAGE
+//#define USE_OPENGL
+#define USE_VULKAN
 
 #ifdef USE_IMAGE
-#include "vive_ros/hellovr_opengl_main.h"
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -22,14 +23,14 @@ void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_s
 enum {X, Y, XY};
 enum {L, R, LR};
 
-class CMainApplicationMod : public CMainApplication
-{
+#if defined USE_OPENGL
+#include "vive_ros/hellovr_opengl_main.h"
+class CMainApplicationMod : public CMainApplication{
   public:
     CMainApplicationMod( int argc, char *argv[] )
     : CMainApplication( argc, argv )
-    , hmd_fov(110*M_PI/180)
-    {
-      m_bShowCubes = false;
+    , hmd_fov(110*M_PI/180) {
+//      m_bShowCubes = false;
       for(int i=0;i<LR;i++){
         cam_f[i][X] = cam_f[i][Y] = 600;
       }
@@ -47,14 +48,8 @@ class CMainApplicationMod : public CMainApplication
     void InitTextures(){
       ros_img[L] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(255,0,0));
       ros_img[R] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(0,255,0));
-//      ros_img[L] = cv::Mat(cv::Size(640, 480), CV_8UC4, cvScalar(255,0,0,0.5));//BGRA
-//      ros_img[R] = cv::Mat(cv::Size(640, 480), CV_8UC4, cvScalar(0,255,0,0));
-//      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
-//      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
-      hmd_panel_img[L] = cv::Mat(cv::Size(1280, 960), CV_8UC3, CV_RGB(100,100,100));
-      hmd_panel_img[R] = cv::Mat(cv::Size(1280, 960), CV_8UC3, CV_RGB(100,100,100));
-//      hmd_panel_img[L] = cv::Mat(cv::Size(1280, 960), CV_8UC4, cvScalar(100,100,100,1));
-//      hmd_panel_img[R] = cv::Mat(cv::Size(1280, 960), CV_8UC4, cvScalar(100,100,100,0));
+      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
+      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
       for ( int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++){
         if(m_pHMD->GetTrackedDeviceClass(i) == vr::TrackedDeviceClass_HMD){
           m_pHMD->GetStringTrackedDeviceProperty( i, vr::Prop_ScreenshotHorizontalFieldOfViewDegrees_Float, (char *)&hmd_fov_h, sizeof(float), NULL );
@@ -74,7 +69,6 @@ class CMainApplicationMod : public CMainApplication
         vr::VRCompositor()->Submit(vr::Eye_Left, &leftEyeTexture );
         vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture );
       }
-//      std::cerr<<"time1 "<<ros::Time::now() - tmp<<std::endl; tmp = ros::Time::now();
       if ( m_bVblank && m_bGlFinishHack ){ glFinish(); }
       SDL_GL_SwapWindow( m_pCompanionWindow );
       glClearColor( 0, 0, 0, 1 );
@@ -88,46 +82,10 @@ class CMainApplicationMod : public CMainApplication
         m_iTrackedControllerCount_Last = m_iTrackedControllerCount;
         dprintf( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
       }
-//      std::cerr<<"time2 "<<ros::Time::now() - tmp<<std::endl; tmp = ros::Time::now();
       UpdateHMDMatrixPose();
-//      std::cerr<<"time3 "<<ros::Time::now() - tmp<<std::endl; tmp = ros::Time::now();
       ROS_INFO_THROTTLE(3.0,"RenderFrame() @ %d [fps]", [](int& cin, int dur){int ans = cin; cin=0; return ans/dur;}(RenderFrame_hz_count, 3));
       RenderFrame_hz_count++;
     }
-
-//    void UpdateHMDMatrixPose(){/// faster ver?
-//      if ( m_pHMD ){
-////        ros::Time tmp = ros::Time::now();
-//        vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0 );//10[ms]
-////        std::cerr<<"time1 "<<ros::Time::now() - tmp<<std::endl; tmp = ros::Time::now();
-////        vr::VRCompositor()->GetLastPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0 );
-//        m_iValidPoseCount = 0;
-//        m_strPoseClasses = "";
-//        for ( int nDevice = 0; nDevice < vr::k_unMaxTrackedDeviceCount; ++nDevice ){
-//          m_rTrackedDevicePose[nDevice] = vr_p->device_poses_[nDevice];//import from vr interface
-//          if ( m_rTrackedDevicePose[nDevice].bPoseIsValid ){
-//            m_iValidPoseCount++;
-//            m_rmat4DevicePose[nDevice] = ConvertSteamVRMatrixToMatrix4( m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking );
-//            if (m_rDevClassChar[nDevice]==0){
-//              switch (m_pHMD->GetTrackedDeviceClass(nDevice)){
-//                case vr::TrackedDeviceClass_Controller:        m_rDevClassChar[nDevice] = 'C'; break;
-//                case vr::TrackedDeviceClass_HMD:               m_rDevClassChar[nDevice] = 'H'; break;
-//                case vr::TrackedDeviceClass_Invalid:           m_rDevClassChar[nDevice] = 'I'; break;
-//                case vr::TrackedDeviceClass_GenericTracker:    m_rDevClassChar[nDevice] = 'G'; break;
-//                case vr::TrackedDeviceClass_TrackingReference: m_rDevClassChar[nDevice] = 'T'; break;
-//                default:                                       m_rDevClassChar[nDevice] = '?'; break;
-//              }
-//            }
-//            m_strPoseClasses += m_rDevClassChar[nDevice];
-//          }
-//        }
-////        std::cerr<<"time2 "<<ros::Time::now() - tmp<<std::endl; tmp = ros::Time::now();
-//        if ( m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid ){
-//          m_mat4HMDPose = m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd];
-//          m_mat4HMDPose.invert();
-//        }
-//      }
-//    }
 
   private:
     cv::Mat hmd_panel_img[LR];
@@ -171,12 +129,273 @@ class CMainApplicationMod : public CMainApplication
         glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_WIDTH , &cur_tex_w );
         glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_HEIGHT , &cur_tex_h );
         glTexSubImage2D( GL_TEXTURE_2D, 0, cur_tex_w/2 - hmd_panel_img[i].cols/2, cur_tex_h/2 - hmd_panel_img[i].rows/2, hmd_panel_img[i].cols, hmd_panel_img[i].rows, GL_RGB, GL_UNSIGNED_BYTE, hmd_panel_img[i].data );
-//        glTexSubImage2D( GL_TEXTURE_2D, 0, cur_tex_w/2 - ros_img_resized[i].cols/2, cur_tex_h/2 - ros_img_resized[i].rows/2, ros_img_resized[i].cols, ros_img_resized[i].rows, GL_RGB, GL_UNSIGNED_BYTE, ros_img_resized[i].data );
 //        glGenerateMipmap(GL_TEXTURE_2D);
         glBindTexture( GL_TEXTURE_2D, 0 );
       }
     }
 };
+
+#elif defined USE_VULKAN
+#include "vive_ros/hellovr_vulkan_main.h"
+
+class CMainApplicationMod : public CMainApplication
+{
+  public:
+    CMainApplicationMod( int argc, char *argv[] )
+    : CMainApplication( argc, argv )
+    , hmd_fov(110*M_PI/180) {
+//      m_bShowCubes = false;
+      for(int i=0;i<LR;i++){
+        cam_f[i][X] = cam_f[i][Y] = 600;
+      }
+      RenderFrame_hz_count = 0;
+    };
+    ~CMainApplicationMod(){};
+    VRInterface* vr_p;
+
+    cv::Mat ros_img[LR];
+    double cam_f[LR][XY];
+    const double hmd_fov;//field of view
+    float hmd_fov_h, hmd_fov_v;
+    int RenderFrame_hz_count;
+
+    void InitTextures(){
+      ros_img[L] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(255,0,0));
+      ros_img[R] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(0,255,0));
+      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
+      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
+      for ( int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++){
+        if(m_pHMD->GetTrackedDeviceClass(i) == vr::TrackedDeviceClass_HMD){
+          m_pHMD->GetStringTrackedDeviceProperty( i, vr::Prop_ScreenshotHorizontalFieldOfViewDegrees_Float, (char *)&hmd_fov_h, sizeof(float), NULL );
+          m_pHMD->GetStringTrackedDeviceProperty( i, vr::Prop_ScreenshotVerticalFieldOfViewDegrees_Float, (char *)&hmd_fov_v, sizeof(float), NULL );
+        }
+      }
+    }
+    void RenderFrame() {
+      if ( m_pHMD ) {
+        m_currentCommandBuffer = GetCommandBuffer();
+        // Start the command buffer
+        VkCommandBufferBeginInfo commandBufferBeginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer( m_currentCommandBuffer.m_pCommandBuffer, &commandBufferBeginInfo );
+        UpdateControllerAxes();
+        RenderStereoTargets();
+        UpdateTexturemaps();
+        RenderCompanionWindow();
+        // End the command buffer
+        vkEndCommandBuffer( m_currentCommandBuffer.m_pCommandBuffer );
+        // Submit the command buffer
+        VkPipelineStageFlags nWaitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_currentCommandBuffer.m_pCommandBuffer;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &m_pSwapchainSemaphores[ m_nFrameIndex ];
+        submitInfo.pWaitDstStageMask = &nWaitDstStageMask;
+        vkQueueSubmit( m_pQueue, 1, &submitInfo, m_currentCommandBuffer.m_pFence );
+        // Add the command buffer back for later recycling
+        m_commandBuffers.push_front( m_currentCommandBuffer );
+        // Submit to SteamVR
+        vr::VRTextureBounds_t bounds;
+        bounds.uMin = 0.0f;
+        bounds.uMax = 1.0f;
+        bounds.vMin = 0.0f;
+        bounds.vMax = 1.0f;
+        vr::VRVulkanTextureData_t vulkanData;
+        vulkanData.m_nImage = ( uint64_t ) m_leftEyeDesc.m_pImage;
+        vulkanData.m_pDevice = ( VkDevice_T * ) m_pDevice;
+        vulkanData.m_pPhysicalDevice = ( VkPhysicalDevice_T * ) m_pPhysicalDevice;
+        vulkanData.m_pInstance = ( VkInstance_T *) m_pInstance;
+        vulkanData.m_pQueue = ( VkQueue_T * ) m_pQueue;
+        vulkanData.m_nQueueFamilyIndex = m_nQueueFamilyIndex;
+        vulkanData.m_nWidth = m_nRenderWidth;
+        vulkanData.m_nHeight = m_nRenderHeight;
+        vulkanData.m_nFormat = VK_FORMAT_R8G8B8A8_SRGB;
+        vulkanData.m_nSampleCount = m_nMSAASampleCount;
+        vr::Texture_t texture = { &vulkanData, vr::TextureType_Vulkan, vr::ColorSpace_Auto };
+
+
+
+
+//
+//        VkDeviceSize nBufferSize = 0;
+//        uint8_t *pBuffer = new uint8_t[ m_nRenderWidth * m_nRenderHeight * 4 * 2 ];
+//        uint8_t *pPrevBuffer = pBuffer;
+//        uint8_t *pCurBuffer = pBuffer;
+//        memcpy( pCurBuffer, hmd_panel_img[L].data, sizeof( uint8_t ) * m_nRenderWidth * m_nRenderHeight * 3 );// 4 -> 3
+//        pCurBuffer += sizeof( uint8_t ) * m_nRenderWidth * m_nRenderHeight * 4;
+//
+//        std::vector< VkBufferImageCopy > bufferImageCopies;
+//        VkBufferImageCopy bufferImageCopy = {};
+//        bufferImageCopy.bufferOffset = 0;
+//        bufferImageCopy.bufferRowLength = 0;
+//        bufferImageCopy.bufferImageHeight = 0;
+//        bufferImageCopy.imageSubresource.baseArrayLayer = 0;
+//        bufferImageCopy.imageSubresource.layerCount = 1;
+//        bufferImageCopy.imageSubresource.mipLevel = 0;
+//        bufferImageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+//        bufferImageCopy.imageOffset.x = 0;
+//        bufferImageCopy.imageOffset.y = 0;
+//        bufferImageCopy.imageOffset.z = 0;
+//        bufferImageCopy.imageExtent.width = m_nRenderWidth;
+//        bufferImageCopy.imageExtent.height = m_nRenderHeight;
+//        bufferImageCopy.imageExtent.depth = 1;
+//        bufferImageCopies.push_back( bufferImageCopy );
+//        int nMipWidth = m_nRenderWidth;
+//        int nMipHeight = m_nRenderHeight;
+//        while( nMipWidth > 1 && nMipHeight > 1 )
+//        {
+//          GenMipMapRGBA( pPrevBuffer, pCurBuffer, nMipWidth, nMipHeight, &nMipWidth, &nMipHeight );
+//          bufferImageCopy.bufferOffset = pCurBuffer - pBuffer;
+//          bufferImageCopy.imageSubresource.mipLevel++;
+//          bufferImageCopy.imageExtent.width = nMipWidth;
+//          bufferImageCopy.imageExtent.height = nMipHeight;
+//          bufferImageCopies.push_back( bufferImageCopy );
+//          pPrevBuffer = pCurBuffer;
+//          pCurBuffer += ( nMipWidth * nMipHeight * 4 * sizeof( uint8_t ) );
+//        }
+//        nBufferSize = pCurBuffer - pBuffer;
+//
+//        // Create the image
+//        VkImageCreateInfo imageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+//        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+//        imageCreateInfo.extent.width = m_nRenderWidth;
+//        imageCreateInfo.extent.height = m_nRenderHeight;
+//        imageCreateInfo.extent.depth = 1;
+//        imageCreateInfo.mipLevels = ( uint32_t ) bufferImageCopies.size();
+//        imageCreateInfo.arrayLayers = 1;
+//        imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+//        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+//        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+//        imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+//        imageCreateInfo.flags = 0;
+//        vkCreateImage( m_pDevice, &imageCreateInfo, nullptr, &m_pSceneImage );
+//
+//
+//        vulkanData.m_nImage = ( uint64_t ) m_leftEyeDesc.m_pImage;
+
+
+//        vkCmdCopyBufferToImage( m_currentCommandBuffer.m_pCommandBuffer, m_pSceneStagingBuffer, m_pSceneImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ( uint32_t ) bufferImageCopies.size(), &bufferImageCopies[ 0 ] );
+
+//        std::cerr<<"test_ptr"<<test_ptr<<std::endl;
+//        memcpy( test_ptr, hmd_panel_img[L].data, sizeof( uint8_t ) * m_nRenderWidth * m_nRenderHeight  );
+//        memcpy( test_ptr, hmd_panel_img[L].data, sizeof( uint8_t )*100);
+
+
+
+
+
+
+        vr::VRCompositor()->Submit( vr::Eye_Left, &texture, &bounds );
+        vulkanData.m_nImage = ( uint64_t ) m_rightEyeDesc.m_pImage;
+        vr::VRCompositor()->Submit( vr::Eye_Right, &texture, &bounds );
+      }
+      VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+      presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+      presentInfo.pNext = NULL;
+      presentInfo.swapchainCount = 1;
+      presentInfo.pSwapchains = &m_pSwapchain;
+      presentInfo.pImageIndices = &m_nCurrentSwapchainImage;
+      vkQueuePresentKHR( m_pQueue, &presentInfo );
+      // Spew out the controller and pose count whenever they change.
+      if ( m_iTrackedControllerCount != m_iTrackedControllerCount_Last || m_iValidPoseCount != m_iValidPoseCount_Last ) {
+        m_iValidPoseCount_Last = m_iValidPoseCount;
+        m_iTrackedControllerCount_Last = m_iTrackedControllerCount;
+        dprintf( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
+      }
+      UpdateHMDMatrixPose();
+      m_nFrameIndex = ( m_nFrameIndex + 1 ) % m_swapchainImages.size();
+    }
+
+  private:
+    cv::Mat hmd_panel_img[LR];
+    cv::Mat ros_img_resized[LR];
+    void processROSStereoImage(cv::Mat (&in)[LR], cv::Mat (&out)[LR]){
+      const double hmd_eye2panel_z[XY] = { (double)out[L].rows/2/tan(hmd_fov/2), (double)out[L].rows/2/tan(hmd_fov/2) };
+      const double cam_pic_size[LR][XY] = { { (double)in[L].cols, (double)in[L].rows }, { (double)in[R].cols, (double)in[R].rows } };
+      double cam_fov[LR][XY];
+      int cam_pic_size_on_hmd[LR][XY];
+      cv::Mat hmd_panel_roi[LR];
+      for(int i=0;i<LR;i++){
+        ROS_INFO_THROTTLE(3.0,"Process ROS image[%d] (%dx%d) with fov (%dx%d) to (%dx%d)", i, in[i].cols, in[i].rows, (int)cam_f[i][X], (int)cam_f[i][Y], out[i].cols, out[i].rows);
+        for(int j=0;j<XY;j++){
+          cam_fov[i][j] = 2 * atan( cam_pic_size[i][j]/2 / cam_f[i][j] );
+          cam_pic_size_on_hmd[i][j] = (int)( hmd_eye2panel_z[X] * 2 * tan(cam_fov[i][j]/2) );
+        }
+        cv::resize(in[i], ros_img_resized[i], cv::Size(cam_pic_size_on_hmd[i][X], cam_pic_size_on_hmd[i][Y]));
+        cv::flip(ros_img_resized[i], ros_img_resized[i], 0);
+        cv::Rect hmd_panel_area_rect( ros_img_resized[i].cols/2-out[i].cols/2, ros_img_resized[i].rows/2-out[i].rows/2, out[i].cols, out[i].rows);
+        cv::Rect ros_img_resized_rect( 0, 0, ros_img_resized[i].cols, ros_img_resized[i].rows);
+        cv::Point ros_img_resized_center(ros_img_resized[i].cols/2, ros_img_resized[i].rows/2);
+        cv::Rect cropped_rect;
+        if( !hmd_panel_area_rect.contains( cv::Point(ros_img_resized_rect.x, ros_img_resized_rect.y) )
+            || !hmd_panel_area_rect.contains( cv::Point(ros_img_resized_rect.x+ros_img_resized_rect.width,ros_img_resized_rect.y+ros_img_resized_rect.height) ) ){
+          ROS_WARN_THROTTLE(3.0,"Resized ROS image[%d] (%dx%d) exceed HMD eye texture (%dx%d) -> Cropping",i,cam_pic_size_on_hmd[i][X],cam_pic_size_on_hmd[i][Y],m_nRenderWidth,m_nRenderHeight);
+          cropped_rect = ros_img_resized_rect & hmd_panel_area_rect;
+          ros_img_resized[i] = ros_img_resized[i](cropped_rect);
+        }
+        cv::Rect hmd_panel_draw_rect( cropped_rect.x-hmd_panel_area_rect.x, cropped_rect.y-hmd_panel_area_rect.y, ros_img_resized[i].cols, ros_img_resized[i].rows);
+        ros_img_resized[i].copyTo(out[i](hmd_panel_draw_rect));
+      }
+    }
+    void UpdateTexturemaps(){
+//      VkDeviceSize nBufferSize = 0;
+//      uint8_t *pBuffer = new uint8_t[ m_nRenderWidth * m_nRenderHeight * 4 * 2 ];
+//      uint8_t *pPrevBuffer = pBuffer;
+//      uint8_t *pCurBuffer = pBuffer;
+//      memcpy( pCurBuffer, &imageRGBA[0], sizeof( uint8_t ) * m_nRenderWidth * m_nRenderHeight * 4 );
+//      pCurBuffer += sizeof( uint8_t ) * m_nRenderWidth * m_nRenderHeight * 4;
+//
+//      std::vector< VkBufferImageCopy > bufferImageCopies;
+//      VkBufferImageCopy bufferImageCopy = {};
+//      bufferImageCopy.bufferOffset = 0;
+//      bufferImageCopy.bufferRowLength = 0;
+//      bufferImageCopy.bufferImageHeight = 0;
+//      bufferImageCopy.imageSubresource.baseArrayLayer = 0;
+//      bufferImageCopy.imageSubresource.layerCount = 1;
+//      bufferImageCopy.imageSubresource.mipLevel = 0;
+//      bufferImageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+//      bufferImageCopy.imageOffset.x = 0;
+//      bufferImageCopy.imageOffset.y = 0;
+//      bufferImageCopy.imageOffset.z = 0;
+//      bufferImageCopy.imageExtent.width = m_nRenderWidth;
+//      bufferImageCopy.imageExtent.height = m_nRenderHeight;
+//      bufferImageCopy.imageExtent.depth = 1;
+//      bufferImageCopies.push_back( bufferImageCopy );
+//
+//      int nMipWidth = m_nRenderWidth;
+//      int nMipHeight = m_nRenderHeight;
+//
+//      while( nMipWidth > 1 && nMipHeight > 1 )
+//      {
+//        GenMipMapRGBA( pPrevBuffer, pCurBuffer, nMipWidth, nMipHeight, &nMipWidth, &nMipHeight );
+//        bufferImageCopy.bufferOffset = pCurBuffer - pBuffer;
+//        bufferImageCopy.imageSubresource.mipLevel++;
+//        bufferImageCopy.imageExtent.width = nMipWidth;
+//        bufferImageCopy.imageExtent.height = nMipHeight;
+//        bufferImageCopies.push_back( bufferImageCopy );
+//        pPrevBuffer = pCurBuffer;
+//        pCurBuffer += ( nMipWidth * nMipHeight * 4 * sizeof( uint8_t ) );
+//      }
+//      nBufferSize = pCurBuffer - pBuffer;
+//
+//      // Create the image
+//      VkImageCreateInfo imageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+//      imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+//      imageCreateInfo.extent.width = m_nRenderWidth;
+//      imageCreateInfo.extent.height = m_nRenderHeight;
+//      imageCreateInfo.extent.depth = 1;
+//      imageCreateInfo.mipLevels = ( uint32_t ) bufferImageCopies.size();
+//      imageCreateInfo.arrayLayers = 1;
+//      imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+//      imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+//      imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+//      imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+//      imageCreateInfo.flags = 0;
+//      vkCreateImage( m_pDevice, &imageCreateInfo, nullptr, &m_pSceneImage );
+    }
+};
+#endif
 #else
 // import from opengl sample
 std::string GetTrackedDeviceString( vr::IVRSystem *pHmd, vr::TrackedDeviceIndex_t unDevice, vr::TrackedDeviceProperty prop, vr::TrackedPropertyError *peError = NULL )
@@ -489,7 +708,7 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "vive_node");
 
 #ifdef USE_IMAGE
-  VIVEnode nodeApp(90);
+  VIVEnode nodeApp(90); // VIVE display max fps
 #else
   VIVEnode nodeApp(1000);
 #endif
