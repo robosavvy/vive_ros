@@ -23,7 +23,7 @@ std::map<vr::ChaperoneCalibrationState, std::string> mapChaperonStrings
   { vr::ChaperoneCalibrationState_Warning_BaseStationRemoved, "There are less base stations than when calibrated" },
   { vr::ChaperoneCalibrationState_Warning_SeatedBoundsInvalid, "Seated bounds haven't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error, "The UniverseID is invalid" },
-  { vr::ChaperoneCalibrationState_Error_BaseStationUninitalized, "Tracking center hasn't be calibrated for at least one of the base stations" },
+  { vr::ChaperoneCalibrationState_Error_BaseStationUninitialized, "Tracking center hasn't be calibrated for at least one of the base stations" },
   { vr::ChaperoneCalibrationState_Error_BaseStationConflict, "Tracking center is calibrated, but base stations disagree on the tracking space" },
   { vr::ChaperoneCalibrationState_Error_PlayAreaInvalid, "Play Area hasn't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error_CollisionBoundsInvalid, "Collision Bounds haven't been calibrated for the current tracking center" }
@@ -33,7 +33,7 @@ VRInterface::VRInterface()
   : error_(defaultErrorMsgCallback)
   , debug_(defaultDebugMsgCallback)
   , info_(defaultInfoMsgCallback)
-  , max_devices_(5) // or vr::k_unMaxTrackedDeviceCount
+  , max_devices_(6) // or vr::k_unMaxTrackedDeviceCount
 {
   play_area_[0] = -1;
   play_area_[1] = -1;
@@ -60,6 +60,7 @@ bool VRInterface::Init()
   {
     pHMD_ = NULL;
     error_("VR_Init Failed.");
+    std::cout << "VRInitError: " << eError << std::endl;
     return false;
   }
 
@@ -108,6 +109,56 @@ bool VRInterface::IsDeviceConnected(int index)
     return pHMD_->IsTrackedDeviceConnected(index);
   }
   return false;
+}
+
+bool VRInterface::IsHMDConnected()
+{
+    return pHMD_->IsTrackedDeviceConnected(1);
+}
+
+bool VRInterface::IsHMD(int deviceType)
+{
+    return deviceType == 1;
+}
+
+bool VRInterface::IsControllerConnected()
+{
+    return pHMD_->IsTrackedDeviceConnected(2);
+}
+
+bool VRInterface::IsController(int deviceType)
+{
+    return deviceType == 2;
+}
+
+bool VRInterface::IsGenericTrackerConnected()
+{
+    return pHMD_->IsTrackedDeviceConnected(3);
+}
+
+bool VRInterface::IsGenericTracker(int deviceType)
+{
+    return deviceType == 3;
+}
+
+bool VRInterface::IsGenericTrackingReferenceConnected()
+{
+    return pHMD_->IsTrackedDeviceConnected(4);
+}
+
+bool VRInterface::IsGenericTrackingReference(int deviceType)
+{
+    return deviceType == 4;
+}
+
+bool VRInterface::IsGenericDisplayRedirectConnected()
+{
+    return pHMD_->IsTrackedDeviceConnected(5);
+}
+
+bool VRInterface::IsGenericDisplayRedirect(int deviceType)
+{
+    return deviceType == 5;
 }
 
 int VRInterface::GetDeviceMatrix(int index, double pMatrix[3][4])

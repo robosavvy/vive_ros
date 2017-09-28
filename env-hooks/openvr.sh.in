@@ -1,0 +1,5 @@
+#/bin/sh
+export OPENVR="$HOME/looc_ws/src/openvr/openvr"
+export STEAM="$HOME/.local/share/Steam"
+export STEAMVR="$HOME/.local/share/Steam/steamapps/common/SteamVR"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/libraries/openvr/lib/linux64:$HOME/.local/share/Steam/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu:$HOME/.local/share/Steam/steamapps/common/SteamVR/bin/linux64:$HOME/.local/share/Steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux64"

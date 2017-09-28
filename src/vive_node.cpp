@@ -1,11 +1,13 @@
+#include "vive_ros/vr_interface.h"
 #include <cmath>
+#include <geometry_msgs/TwistStamped.h>
+#include <iostream>
 #include <ros/ros.h>
+#include <sstream>
+#include <std_srvs/Empty.h>
+#include <string>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
-#include <std_srvs/Empty.h>
-#include "vive_ros/vr_interface.h"
-
-#include <geometry_msgs/TwistStamped.h>
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
@@ -34,6 +36,7 @@ class VIVEnode
     ros::Publisher twist1_pub_;
     ros::Publisher twist2_pub_;
 
+  public:
     VRInterface vr_;
 
 };
@@ -89,6 +92,12 @@ bool VIVEnode::setOriginCB(std_srvs::Empty::Request& req, std_srvs::Empty::Respo
 {
   double tf_matrix[3][4];
   int index = 1, dev_type;
+  //std::stringstream type_message;
+  //type_message << "Device type: " << dev_type << std::endl;
+
+  //std::cout << type_message.str() << std::endl;
+
+  //ROS_INFO(type_message.str());
   while (dev_type != 2) 
   {
     dev_type = vr_.GetDeviceMatrix(index++, tf_matrix);
@@ -137,7 +146,17 @@ void VIVEnode::Run()
 
     int controller_count = 1;
     int lighthouse_count = 1;
-    for (int i=0; i<5; i++)
+    int tracker_count = 1;
+    ROS_INFO(" [VIVE] Number of connected devices: [%d] .", vr_.max_devices_);
+    ROS_INFO(" [VIVE] Is HMD connected? %d", vr_.IsHMDConnected());
+    ROS_INFO(" [VIVE] Is Controller connected? %d", vr_.IsControllerConnected());
+    ROS_INFO(" [VIVE] Is Generic Tracker connected? %d", vr_.IsGenericTrackerConnected());
+    ROS_INFO(" [VIVE] Is Generic Tracking Reference connected? %d", 
+        vr_.IsGenericTrackingReferenceConnected());
+    ROS_INFO(" [VIVE] Is Generic Display Redirect connected? %d", 
+        vr_.IsGenericDisplayRedirectConnected());
+
+    for (int i=0; i<vr_.max_devices_; i++)
     {
       int dev_type = vr_.GetDeviceMatrix(i, tf_matrix);
 
@@ -155,22 +174,27 @@ void VIVEnode::Run()
       rot_matrix.getRotation(quat);
       tf.setRotation(quat);
 
-      // It's a HMD
-      if (dev_type == 1)
+      // It's a Head Mounted Display.
+      if (vr_.IsHMD(dev_type))
       {
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "hmd"));
       }
       // It's a controller
-      if (dev_type == 2)
+      if (vr_.IsController(dev_type))
       {
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller"+std::to_string(controller_count++)));
       }
-      // It's a lighthouse
-      if (dev_type == 4)
+      // It's a lighthouse (Generic Tracking Reference).
+      if (vr_.IsGenericTrackingReference(dev_type))
       {
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "lighthouse"+std::to_string(lighthouse_count++)));
       }
-
+      // It's a tracker.
+      if (vr_.IsGenericTracker(dev_type))
+      {
+        ROS_INFO(" [vive_node] Got request from device type %d (tracker).", dev_type);
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "tracker"+std::to_string(tracker_count++)));
+      }
     }
 
     // Publish corrective transform
@@ -229,6 +253,7 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "vive_node");
 
   VIVEnode nodeApp(20);
+  ROS_INFO("Number of connected devices: %d .", nodeApp.vr_.max_devices_);
 
   if (!nodeApp.Init())
   {
