@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="tf" type="static_transform_publisher" name="tango_to_vive"
+    args="0 0 0 0 0 0 /start_of_service /world 100" />
+</launch>
