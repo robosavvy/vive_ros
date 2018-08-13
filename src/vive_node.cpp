@@ -1,15 +1,28 @@
 #include <cmath>
 #include <ros/ros.h>
+#include <signal.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <std_srvs/Empty.h>
+#include <iostream>
 #include "vive_ros/vr_interface.h"
 
 #include <geometry_msgs/TwistStamped.h>
 
+using namespace std;
+
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
+
+void mySigintHandler(int sig)
+ {
+   // Do some custom action.
+  // For example, publish a stop message to some other nodes.
+   
+   // All the default sigint handler does is call shutdown()
+   ros::shutdown();
+ }
 
 class VIVEnode
 {
@@ -68,6 +81,7 @@ VIVEnode::~VIVEnode()
 bool VIVEnode::Init()
 {
   //  Set logging functions
+  
   vr_.setDebugMsgCallback(handleDebugMessages);
   vr_.setInfoMsgCallback(handleInfoMessages);
   vr_.setErrorMsgCallback(handleErrorMessages);
@@ -140,6 +154,7 @@ void VIVEnode::Run()
     for (int i=0; i<5; i++)
     {
       int dev_type = vr_.GetDeviceMatrix(i, tf_matrix);
+      cout << "Dev_tpe:" << dev_type << endl; 
 
       // No device
       if (dev_type == 0) continue;
@@ -226,19 +241,21 @@ void VIVEnode::Run()
 
 // Main
 int main(int argc, char** argv){
+  signal(SIGINT, mySigintHandler);
   ros::init(argc, argv, "vive_node");
 
   VIVEnode nodeApp(20);
-
+  
   if (!nodeApp.Init())
   {
     nodeApp.Shutdown();
     return 1;
   }
-
+  
   nodeApp.Run();
 
   nodeApp.Shutdown();
+  
 
   return 0;
 };
