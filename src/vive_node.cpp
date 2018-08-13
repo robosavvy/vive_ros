@@ -44,6 +44,7 @@ class VIVEnode
     tf::TransformBroadcaster tf_broadcaster_;
     tf::TransformListener tf_listener_;
     ros::ServiceServer set_origin_server_;
+    ros::Publisher twist0_pub_;
     ros::Publisher twist1_pub_;
     ros::Publisher twist2_pub_;
 
@@ -66,9 +67,10 @@ VIVEnode::VIVEnode(int rate)
   ROS_INFO(" [VIVE] World offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
 
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
-
-  //~ twist1_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist1", 10);
-  //~ twist2_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist2", 10);
+  
+  twist0_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist0", 10);
+  twist1_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist1", 10);
+  twist2_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist2", 10);
 
   return;
 }
@@ -198,42 +200,68 @@ void VIVEnode::Run()
     tf_broadcaster_.sendTransform(tf::StampedTransform(tf_world, ros::Time::now(), "world", "world_vive"));
 
     // Publish twist messages for controller1 and controller2
-    //~ double lin_vel[3], ang_vel[3];
-    //~ if (vr_.GetDeviceVel(1, lin_vel, ang_vel))
-    //~ {
-      //~ geometry_msgs::Twist twist_msg;
-      //~ twist_msg.linear.x = lin_vel[0];
-      //~ twist_msg.linear.y = lin_vel[1];
-      //~ twist_msg.linear.z = lin_vel[2];
-      //~ twist_msg.angular.x = ang_vel[0];
-      //~ twist_msg.angular.y = ang_vel[1];
-      //~ twist_msg.angular.z = ang_vel[2];
+    double lin_vel[3], ang_vel[3];
+    if (vr_.GetDeviceVel(0, lin_vel, ang_vel))
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = lin_vel[0];
+        twist_msg.linear.y = lin_vel[1];
+        twist_msg.linear.z = lin_vel[2];
+        twist_msg.angular.x = ang_vel[0];
+        twist_msg.angular.y = ang_vel[1];
+        twist_msg.angular.z = ang_vel[2];
 
-      //~ geometry_msgs::TwistStamped twist_msg_stamped;
-      //~ twist_msg_stamped.header.stamp = ros::Time::now();
-      //~ twist_msg_stamped.header.frame_id = "world_vive";
-      //~ twist_msg_stamped.twist = twist_msg;
+        geometry_msgs::TwistStamped twist_msg_stamped;
+        twist_msg_stamped.header.stamp = ros::Time::now();
+        twist_msg_stamped.header.frame_id = "world_vive";
+        twist_msg_stamped.twist = twist_msg;
 
-      //~ twist1_pub_.publish(twist_msg_stamped);
-    //~ }
-    //~ if (vr_.GetDeviceVel(2, lin_vel, ang_vel))
-    //~ {
-      //~ geometry_msgs::Twist twist_msg;
-      //~ twist_msg.linear.x = lin_vel[0];
-      //~ twist_msg.linear.y = lin_vel[1];
-      //~ twist_msg.linear.z = lin_vel[2];
-      //~ twist_msg.angular.x = ang_vel[0];
-      //~ twist_msg.angular.y = ang_vel[1];
-      //~ twist_msg.angular.z = ang_vel[2];
+        twist0_pub_.publish(twist_msg_stamped);
+     
+        std::cout<<"HMD:";
+        std::cout<<twist_msg_stamped;
+    }
+    if (vr_.GetDeviceVel(1, lin_vel, ang_vel))
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = lin_vel[0];
+        twist_msg.linear.y = lin_vel[1];
+        twist_msg.linear.z = lin_vel[2];
+        twist_msg.angular.x = ang_vel[0];
+        twist_msg.angular.y = ang_vel[1];
+        twist_msg.angular.z = ang_vel[2];
 
-      //~ geometry_msgs::TwistStamped twist_msg_stamped;
-      //~ twist_msg_stamped.header.stamp = ros::Time::now();
-      //~ twist_msg_stamped.header.frame_id = "world_vive";
-      //~ twist_msg_stamped.twist = twist_msg;
+        geometry_msgs::TwistStamped twist_msg_stamped;
+        twist_msg_stamped.header.stamp = ros::Time::now();
+        twist_msg_stamped.header.frame_id = "world_vive";
+        twist_msg_stamped.twist = twist_msg;
 
-      //~ twist2_pub_.publish(twist_msg_stamped);
-    //~ }
+        twist1_pub_.publish(twist_msg_stamped);
+     
+        std::cout<<"Controller 1:";
+        std::cout<<twist_msg_stamped;
+    }
+    if (vr_.GetDeviceVel(2, lin_vel, ang_vel))
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = lin_vel[0];
+        twist_msg.linear.y = lin_vel[1];
+        twist_msg.linear.z = lin_vel[2];
+        twist_msg.angular.x = ang_vel[0];
+        twist_msg.angular.y = ang_vel[1];
+        twist_msg.angular.z = ang_vel[2];
 
+        geometry_msgs::TwistStamped twist_msg_stamped;
+        twist_msg_stamped.header.stamp = ros::Time::now();
+        twist_msg_stamped.header.frame_id = "world_vive";
+        twist_msg_stamped.twist = twist_msg;
+
+        twist2_pub_.publish(twist_msg_stamped);
+     
+        std::cout<<"Controller 2:";
+        std::cout<<twist_msg_stamped;
+    }
+   
     ros::spinOnce();
     loop_rate_.sleep();
   }
