@@ -15,3 +15,6 @@ Procedure:
 2. Launch the SteamVR's `vrserver` by launching the file: `roslaunch vive_ros server_vr.launch`
 3. Launch the node: `roslaunch vive_ros vive.launch`
 4. To close the node you can `Ctrl+C`. To close the vr server you have to kill the process. For convenience: `rosrun vive_ros close_servervr.sh`
+
+Update in my version of code:
+1. Hardware Safety code added in order to shutdown of hardware. This will prevent hardware from any damage caused due to abrupt shutdown.
