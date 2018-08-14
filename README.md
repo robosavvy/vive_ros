@@ -18,3 +18,5 @@ Procedure:
 
 Update in my version of code:
 1. Hardware Safety code added in order to shutdown of hardware. This will prevent hardware from any damage caused due to abrupt shutdown.
+
+2. It has code updated for publishing HTC Vive Component (HTC Vive Headset and 2 HTC Controllers) data.
