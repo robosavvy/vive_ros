@@ -183,6 +183,21 @@ std::string VRInterface::GetTrackedDeviceString( vr::IVRSystem *pHmd, vr::Tracke
   return sResult;
 }
 
+void VRInterface::HandleInput()
+{
+  // Process SteamVR controller state
+  for(vr::TrackedDeviceIndex_t unDevice = 0; unDevice < vr::k_unMaxTrackedDeviceCount; unDevice++) {
+    pHMD_->GetControllerState(unDevice, &trackedDeviceStates[unDevice]);
+  }
+}
+
+void VRInterface::TriggerHapticPulse(vr::TrackedDeviceIndex_t unControllerDeviceIndex, uint32_t unAxisId, int usDurationMicroSec)
+{
+    usDurationMicroSec = std::min(usDurationMicroSec, 3999);
+    usDurationMicroSec = std::max(usDurationMicroSec, 0);
+    pHMD_->TriggerHapticPulse(unControllerDeviceIndex, unAxisId, usDurationMicroSec);
+}
+
 void VRInterface::setErrorMsgCallback(ErrorMsgCallback fn) { error_ = fn; }
 void VRInterface::setInfoMsgCallback(InfoMsgCallback fn) { info_ = fn; }
 void VRInterface::setDebugMsgCallback(DebugMsgCallback fn) { debug_ = fn; }
