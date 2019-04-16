@@ -7,12 +7,12 @@ Video example: [https://youtu.be/1hiX0f6UAew](https://youtu.be/1hiX0f6UAew)
 Installation instructions based on: `https://www.gamingonlinux.com/articles/first-steps-with-openvr-and-the-vive-on-linux.7229`
 
 
-### Download and build Christoph's OpenVR SDK fork:
+### Download and build Valve's OpenVR SDK (most recently tested version):
 
       cd ~
       mkdir libraries
       cd libraries
-      git clone https://github.com/ChristophHaag/openvr.git
+      git clone https://github.com/ValveSoftware/openvr.git -b v1.3.22
       cd openvr
       mkdir build
       cd build
