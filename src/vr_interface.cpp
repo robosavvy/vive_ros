@@ -23,7 +23,7 @@ std::map<vr::ChaperoneCalibrationState, std::string> mapChaperonStrings
   { vr::ChaperoneCalibrationState_Warning_BaseStationRemoved, "There are less base stations than when calibrated" },
   { vr::ChaperoneCalibrationState_Warning_SeatedBoundsInvalid, "Seated bounds haven't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error, "The UniverseID is invalid" },
-  { vr::ChaperoneCalibrationState_Error_BaseStationUninitalized, "Tracking center hasn't be calibrated for at least one of the base stations" },
+  { vr::ChaperoneCalibrationState_Error_BaseStationUninitialized, "Tracking center hasn't be calibrated for at least one of the base stations" },
   { vr::ChaperoneCalibrationState_Error_BaseStationConflict, "Tracking center is calibrated, but base stations disagree on the tracking space" },
   { vr::ChaperoneCalibrationState_Error_PlayAreaInvalid, "Play Area hasn't been calibrated for the current tracking center" },
   { vr::ChaperoneCalibrationState_Error_CollisionBoundsInvalid, "Collision Bounds haven't been calibrated for the current tracking center" }
@@ -33,7 +33,7 @@ VRInterface::VRInterface()
   : error_(defaultErrorMsgCallback)
   , debug_(defaultDebugMsgCallback)
   , info_(defaultInfoMsgCallback)
-  , max_devices_(5) // or vr::k_unMaxTrackedDeviceCount
+  , max_devices_(vr::k_unMaxTrackedDeviceCount) // or vr::k_unMaxTrackedDeviceCount
 {
   play_area_[0] = -1;
   play_area_[1] = -1;
@@ -59,7 +59,8 @@ bool VRInterface::Init()
   if (eError != vr::VRInitError_None)
   {
     pHMD_ = NULL;
-    error_("VR_Init Failed.");
+    std::string err_msg = "VR_Init Failed. EVRInitError = "+eError;
+    error_(err_msg);
     return false;
   }
 
@@ -183,12 +184,10 @@ std::string VRInterface::GetTrackedDeviceString( vr::IVRSystem *pHmd, vr::Tracke
   return sResult;
 }
 
-void VRInterface::HandleInput()
+void VRInterface::HandleInput(vr::TrackedDeviceIndex_t unControllerDeviceIndex, vr::VRControllerState_t& state)
 {
   // Process SteamVR controller state
-  for(vr::TrackedDeviceIndex_t unDevice = 0; unDevice < vr::k_unMaxTrackedDeviceCount; unDevice++) {
-    pHMD_->GetControllerState(unDevice, &trackedDeviceStates[unDevice]);
-  }
+  pHMD_->GetControllerState(unControllerDeviceIndex, &state, sizeof(vr::VRControllerState_t));
 }
 
 void VRInterface::TriggerHapticPulse(vr::TrackedDeviceIndex_t unControllerDeviceIndex, uint32_t unAxisId, int usDurationMicroSec)
