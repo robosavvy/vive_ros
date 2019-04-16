@@ -3,7 +3,7 @@ project(vive_ros)
 
 ## set definition, path, compileflags
 add_definitions(-DLINUX -DLINUX64 -DPOSIX)
-set(OPENVR "$ENV{HOME}/openvr")
+set(OPENVR "$ENV{HOME}/libraries/openvr")
 add_definitions(-DOPENVR_PATH="${OPENVR}") ## for source code to get sample textures and shader files path
 set(THIRDPARTY_DIR ${OPENVR}/samples/thirdparty)
 set(SHARED_SRC_DIR ${OPENVR}/samples/shared)

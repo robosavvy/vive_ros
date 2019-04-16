@@ -54,7 +54,7 @@ bool VRInterface::Init()
   // Loading the SteamVR Runtime
   vr::EVRInitError eError = vr::VRInitError_None;
   
-  pHMD_ = vr::VR_Init( &eError, vr::VRApplication_Scene );
+  pHMD_ = vr::VR_Init( &eError, vr::VRApplication_Background );
 
   if (eError != vr::VRInitError_None)
   {

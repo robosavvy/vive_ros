@@ -1,19 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="OPENVR"  value="$(env HOME)/openvr"/>
-  <arg name="OPENVR_LIB_PATH" value="$(arg OPENVR)/lib/linux32/:$(arg OPENVR)/lib/linux64/"/>
+  <env name="OPENVR" value="$(env HOME)/libraries/openvr"/>
+  <env name="STEAM" value="$(env HOME)/.local/share/Steam"/>
+  <env name="STEAMVR" value="$(env HOME)/.steam/steam/steamapps/common/SteamVR"/>
 
-  <arg name="STEAM"  value="$(env HOME)/.steam/ubuntu12_32/steam-runtime"/>
-  <arg name="STEAMVR_LIB_PATH" value="$(arg STEAM)/amd64/lib/x86_64-linux-gnu:$(arg STEAM)/amd64/lib:$(arg STEAM)/amd64/usr/lib/x86_64-linux-gnu:$(arg STEAM)/amd64/usr/lib:$(arg STEAM)/i386/lib/i386-linux-gnu:$(arg STEAM)/i386/lib:$(arg STEAM)/i386/usr/lib/i386-linux-gnu:$(arg STEAM)/i386/usr/lib:"/>
+  <env name="LD_LIBRARY_PATH" value="$(env LD_LIBRARY_PATH):$(env HOME)/libraries/openvr/lib/linux64:$(env HOME)/.local/share/Steam/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu:$(env HOME)/.steam/steam/steamapps/common/SteamVR/bin/linux64:$(env HOME)/.steam/steam/steamapps/common/SteamVR/drivers/lighthouse/bin/linux64"/>
 
-  <!-- for backward compatibility -->
-  <arg name="STEAM_OLD"   value="$(env HOME)/.local/share/Steam"/>
-  <arg name="STEAMVR_OLD" value="$(arg STEAM_OLD)/steamapps/common/SteamVR"/>
-  <arg name="STEAMVR_LIB_PATH_OLD" value="$(arg STEAM_OLD)/ubuntu12_32/steam-runtime/i386/usr/lib/i386-linux-gnu/:$(arg STEAM_OLD)/ubuntu12_32/steam-runtime/amd64/usr/lib/x86_64-linux-gnu/:$(arg STEAM_OLD)/ubuntu12_32/steam-runtime/amd64/lib/x86_64-linux-gnu/:$(arg STEAM_OLD)/ubuntu12_32/steam-runtime/i386/lib/i386-linux-gnu/:$(arg STEAMVR_OLD)/bin/linux32/:$(arg STEAMVR_OLD)/bin/linux64/:$(arg STEAMVR_OLD)/drivers/lighthouse/bin/linux32/:$(arg STEAMVR_OLD)/drivers/lighthouse/bin/linux64/"/>
-
-  <env name="LD_LIBRARY_PATH" value="$(arg OPENVR_LIB_PATH):$(arg STEAMVR_LIB_PATH):$(arg STEAMVR_LIB_PATH_OLD):$(env LD_LIBRARY_PATH)"/>
-
-  <rosparam param="/vive/world_offset">[0, 0, 2]</rosparam>
+  <rosparam param="/vive/world_offset">[0, 0, 2.265]</rosparam>
   <rosparam param="/vive/world_yaw">0.0</rosparam>
 
   <node name="vive_node" pkg="vive_ros" type="vive_node" output="screen" required="true"/>

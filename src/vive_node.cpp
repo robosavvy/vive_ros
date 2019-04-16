@@ -11,7 +11,7 @@ void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_s
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
 
-#define USE_IMAGE
+//#define USE_IMAGE
 
 #define USE_OPENGL
 //#define USE_VULKAN
