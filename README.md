@@ -22,7 +22,7 @@ Installation instructions based on: `https://www.gamingonlinux.com/articles/firs
 ### Allow hardware access
 Then plug-in VIVE to your computer and make sure you can see the devices on `/dev/hidraw[1-6]`.
 
-Copy the file `88-vive.rules` to the folder `/etc/udev/rules.d`. Then run:
+Copy the file `60-HTC-Vive-perms.rules` to the folder `/etc/udev/rules.d`. Then run:
 
       sudo /etc/init.d/udev restart
 
