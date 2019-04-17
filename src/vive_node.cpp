@@ -589,7 +589,6 @@ void VIVEnode::Run()
     for (int i=0; i<vr::k_unMaxTrackedDeviceCount; i++)
     {
       int dev_type = vr_.GetDeviceMatrix(i, tf_matrix);
-      cout << "Dev_tpe:" << dev_type << endl; 
 
       // No device
       if (dev_type == 0) continue;
@@ -687,8 +686,8 @@ void VIVEnode::Run()
 
         twist0_pub_.publish(twist_msg_stamped);
      
-        std::cout<<"HMD:";
-        std::cout<<twist_msg_stamped;
+        // std::cout<<"HMD:";
+        // std::cout<<twist_msg_stamped;
     }
     if (vr_.GetDeviceVel(1, lin_vel, ang_vel))
     {
@@ -707,8 +706,8 @@ void VIVEnode::Run()
 
         twist1_pub_.publish(twist_msg_stamped);
      
-        std::cout<<"Controller 1:";
-        std::cout<<twist_msg_stamped;
+        // std::cout<<"Controller 1:";
+        // std::cout<<twist_msg_stamped;
     }
     if (vr_.GetDeviceVel(2, lin_vel, ang_vel))
     {
@@ -727,8 +726,8 @@ void VIVEnode::Run()
 
         twist2_pub_.publish(twist_msg_stamped);
      
-        std::cout<<"Controller 2:";
-        std::cout<<twist_msg_stamped;
+        // std::cout<<"Controller 2:";
+        // std::cout<<twist_msg_stamped;
     }
    
 #ifdef USE_IMAGE
