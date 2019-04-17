@@ -4,9 +4,6 @@ Video example: [https://youtu.be/1hiX0f6UAew](https://youtu.be/1hiX0f6UAew)
 
 ## Installation instructions
 
-Installation instructions based on: `https://www.gamingonlinux.com/articles/first-steps-with-openvr-and-the-vive-on-linux.7229`
-
-
 ### Download and build Valve's OpenVR SDK (most recently tested version):
 
       cd ~
