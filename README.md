@@ -24,7 +24,7 @@ Then plug-in VIVE to your computer and make sure you can see the devices on `/de
 
 Copy the file `60-HTC-Vive-perms.rules` to the folder `/etc/udev/rules.d`. Then run:
 
-      sudo /etc/init.d/udev restart
+      sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ### Install Steam and SteamVR
 
