@@ -28,11 +28,17 @@ Copy the file `60-HTC-Vive-perms.rules` to the folder `/etc/udev/rules.d`. Then 
 
 ### Install Steam and SteamVR
 
-Go to `http://store.steampowered.com/` and download Steam for Linux.
-After successfully installing and running Steam, it should store its files on: `~/.steam/`
+Install Steam:
+`sudo apt install steam`
 
-Install SteamVR by using this URL `steam://install/250820`.
-Files should be located on: `~/.steam/steam/steamapps/common/SteamVR`
+Run Steam:
+`steam`
+
+Setup or log in into your Steam account and install SteamVR app from Steam store.
+
+Steam files should be located in: `~/.steam/steam`
+
+SteamVR files should be located in: `~/.steam/steam/steamapps/common/SteamVR`
 
 ### Configure display.
 
@@ -48,7 +54,6 @@ Before start:
 
 Procedure:
 
-1. Start a `roscore`
-2. Launch the SteamVR's `vrserver` by launching the file: `roslaunch vive_ros server_vr.launch`
-3. Launch the node: `roslaunch vive_ros vive.launch`
-4. To close the node you can `Ctrl+C`. To close the vr server you have to kill the process. For convenience: `rosrun vive_ros close_servervr.sh`
+1. Launch the SteamVR's `vrserver` by launching the file: `roslaunch vive_ros server_vr.launch`
+2. Launch the node: `roslaunch vive_ros vive.launch`
+3. To close the node you can `Ctrl+C`. To close the vr server you have to kill the process. For convenience: `rosrun vive_ros close_servervr.sh`
