@@ -29,10 +29,10 @@ Copy the file `60-HTC-Vive-perms.rules` to the folder `/etc/udev/rules.d`. Then 
 ### Install Steam and SteamVR
 
 Go to `http://store.steampowered.com/` and download Steam for Linux.
-After successfully installing and running Steam, it should store its files on: `~/.local/share/Steam`
+After successfully installing and running Steam, it should store its files on: `~/.steam/
 
 Install SteamVR by using this URL `steam://install/250820`.
-Files should be located on: `~/.local/share/Steam/steamapps/common/SteamVR`
+Files should be located on: `~/.steam/steam/steamapps/common/SteamVR`
 
 ### Configure display.
 
