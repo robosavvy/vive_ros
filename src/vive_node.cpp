@@ -5,6 +5,7 @@
 #include <sensor_msgs/Joy.h>
 #include <sensor_msgs/JoyFeedback.h>
 #include <std_srvs/Empty.h>
+#include <geometry_msgs/PoseStamped.h>
 #include "vive_ros/vr_interface.h"
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
@@ -13,8 +14,8 @@ void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_s
 
 //#define USE_IMAGE
 
-#define USE_OPENGL
-//#define USE_VULKAN
+//#define USE_OPENGL
+#define USE_VULKAN
 
 #ifdef USE_IMAGE
 #include <image_transport/image_transport.h>
@@ -446,6 +447,10 @@ class VIVEnode
     ros::ServiceServer set_origin_server_;
     std::map<std::string, ros::Publisher> button_states_pubs_map;
     ros::Subscriber feedback_sub_;
+    ros::Publisher hmd_pub_;
+    ros::Publisher controller1_pub_;
+    ros::Publisher controller2_pub_;
+
 
 };
 
@@ -463,6 +468,9 @@ VIVEnode::VIVEnode(int rate)
   ROS_INFO(" [VIVE] World offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
   feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
+  hmd_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/hmd_pose", 1000);
+  controller1_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/controller1_pose", 1000);
+  controller2_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/controller2_pose", 1000);
 
 #ifdef USE_IMAGE
   image_transport::ImageTransport it(nh_);
@@ -577,7 +585,12 @@ void VIVEnode::Run()
       if (dev_type == 0) continue;
 
       tf::Transform tf;
+      geometry_msgs::PoseStamped msg;
       tf.setOrigin(tf::Vector3(tf_matrix[0][3], tf_matrix[1][3], tf_matrix[2][3]));
+
+      msg.pose.position.x = tf_matrix[0][3];
+      msg.pose.position.y = tf_matrix[1][3];
+      msg.pose.position.z = tf_matrix[2][3];
 
       tf::Quaternion quat;
       tf::Matrix3x3 rot_matrix(tf_matrix[0][0], tf_matrix[0][1], tf_matrix[0][2],
@@ -586,6 +599,13 @@ void VIVEnode::Run()
 
       rot_matrix.getRotation(quat);
       tf.setRotation(quat);
+
+      msg.pose.orientation.x = quat.x();
+      msg.pose.orientation.y = quat.y();
+      msg.pose.orientation.z = quat.z();
+      msg.pose.orientation.w = quat.w();
+      msg.header.frame_id = "world_vive";
+      msg.header.stamp = ros::Time::now();
       //get device serial number
       std::string cur_sn = GetTrackedDeviceString( vr_.pHMD_, i, vr::Prop_SerialNumber_String );
       std::replace(cur_sn.begin(), cur_sn.end(), '-', '_');
@@ -594,12 +614,29 @@ void VIVEnode::Run()
       if (dev_type == 1)
       {
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "hmd"));
+        hmd_pub_.publish(msg);
       }
       // It's a controller
       if (dev_type == 2)
       {
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller_"+cur_sn));
 
+        //Temporary, need to do some other way
+        tf::Quaternion quat_correct(0.687, -0.679, -0.200, -0.162), quat_baselink(0.0, 0.0, 0.0, 1.0);
+        tf::Transform tf_correct, tf_baselink;
+        tf_correct.setRotation(quat_correct);
+        tf_baselink.setOrigin(tf::Vector3(0.24, 0, -0.745));
+        tf_baselink.setRotation(quat_baselink);
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf_correct, ros::Time::now(), "controller_"+cur_sn, "controller_"+cur_sn + '_'));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf_baselink, ros::Time::now(), "controller_"+cur_sn + '_', "base_link_controller_"+cur_sn));
+        geometry_msgs::PoseStamped msg_correct;
+        msg_correct.pose.orientation.w = 1;
+        msg_correct.header.frame_id = "base_link_controller_"+cur_sn;
+        msg_correct.header.stamp = ros::Time::now();
+        controller1_pub_.publish(msg_correct);
+        //Temporary, need to do some other way
+
+        //controller1_pub_.publish(msg);
         vr::VRControllerState_t state;
         vr_.HandleInput(i, state);
         sensor_msgs::Joy joy;
