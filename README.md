@@ -25,15 +25,16 @@ Copy the file `60-HTC-Vive-perms.rules` to the folder `/etc/udev/rules.d`. Then 
 
 ### Install Steam and SteamVR
 
+Download latest steam version at `https://store.steampowered.com/`. You should get the file `steam_latest.deb` in your `~/Downloads` folder
 Install Steam:
       
-      sudo apt install steam
+      sudo dpkg --install ~/Downloads/steam_latest.deb
 
 Run Steam:
       
       steam
 
-Setup or log in into your Steam account and install SteamVR app from Steam store.
+Setup or log in into your Steam account and install SteamVR from the Steam store.
 
 Steam files should be located in: `~/.steam/steam`
 
