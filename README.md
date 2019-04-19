@@ -4,9 +4,6 @@ Video example: [https://youtu.be/1hiX0f6UAew](https://youtu.be/1hiX0f6UAew)
 
 ## Installation instructions
 
-Installation instructions based on: `https://www.gamingonlinux.com/articles/first-steps-with-openvr-and-the-vive-on-linux.7229`
-
-
 ### Download and build Valve's OpenVR SDK (most recently tested version):
 
       cd ~
@@ -22,17 +19,27 @@ Installation instructions based on: `https://www.gamingonlinux.com/articles/firs
 ### Allow hardware access
 Then plug-in VIVE to your computer and make sure you can see the devices on `/dev/hidraw[1-6]`.
 
-Copy the file `88-vive.rules` to the folder `/etc/udev/rules.d`. Then run:
+Copy the file `60-HTC-Vive-perms.rules` to the folder `/etc/udev/rules.d`. Then run:
 
-      sudo /etc/init.d/udev restart
+      sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ### Install Steam and SteamVR
 
-Go to `http://store.steampowered.com/` and download Steam for Linux.
-After successfully installing and running Steam, it should store its files on: `~/.local/share/Steam`
+Download latest steam version at `https://store.steampowered.com/`. You should get the file `steam_latest.deb` in your `~/Downloads` folder
 
-Install SteamVR by using this URL `steam://install/250820`.
-Files should be located on: `~/.local/share/Steam/steamapps/common/SteamVR`
+Install Steam:
+      
+      sudo dpkg --install ~/Downloads/steam_latest.deb
+
+Run Steam:
+      
+      steam
+
+Setup or log in into your Steam account and install SteamVR from the Steam store.
+
+Steam files should be located in: `~/.steam/steam`
+
+SteamVR files should be located in: `~/.steam/steam/steamapps/common/SteamVR`
 
 ### Configure display.
 
@@ -48,7 +55,6 @@ Before start:
 
 Procedure:
 
-1. Start a `roscore`
-2. Launch the SteamVR's `vrserver` by launching the file: `roslaunch vive_ros server_vr.launch`
-3. Launch the node: `roslaunch vive_ros vive.launch`
-4. To close the node you can `Ctrl+C`. To close the vr server you have to kill the process. For convenience: `rosrun vive_ros close_servervr.sh`
+1. Launch the SteamVR's `vrserver` by launching the file: `roslaunch vive_ros server_vr.launch`
+2. Launch the node: `roslaunch vive_ros vive.launch`
+3. To close the node you can `Ctrl+C`. To close the vr server you have to kill the process. For convenience: `rosrun vive_ros close_servervr.sh`
