@@ -629,6 +629,7 @@ void VIVEnode::Run()
         tf_baselink.setRotation(quat_baselink);
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf_correct, ros::Time::now(), "controller_"+cur_sn, "controller_"+cur_sn + '_'));
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf_baselink, ros::Time::now(), "controller_"+cur_sn + '_', "base_link_controller_"+cur_sn));
+        
         geometry_msgs::PoseStamped msg_correct;
         msg_correct.pose.orientation.w = 1;
         msg_correct.header.frame_id = "base_link_controller_"+cur_sn;
@@ -748,7 +749,7 @@ int main(int argc, char** argv){
 #ifdef USE_IMAGE
   VIVEnode nodeApp(90); // VIVE display max fps
 #else
-  VIVEnode nodeApp(1000);
+  VIVEnode nodeApp(30); // old rate : 1000, changed due to cpu overload
 #endif
   if (!nodeApp.Init()){
     nodeApp.Shutdown();
