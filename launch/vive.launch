@@ -5,5 +5,10 @@
   <rosparam param="/vive/world_yaw">0.0</rosparam>
 
   <node name="vive_node" pkg="vive_ros" type="vive_node" launch-prefix="$(env HOME)/.steam/steam/ubuntu12_32/steam-runtime/run.sh" output="screen" required="true"/>
+  
+  <!-- Bathroom Lighthouse -->
+  <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_map_tf" args="-5.0 4.35 0.0 -2.13 0.0 0.0 map world" /-->
+  <!-- Docking Lighthouse -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="world_map_tf" args="0.889, 0.027 0.0 0.88 0.0 0.0 map world"/>
 
 </launch>

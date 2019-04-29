@@ -2,6 +2,7 @@
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
+#include <tf/transform_listener.h>
 #include <sensor_msgs/Joy.h>
 #include <sensor_msgs/JoyFeedback.h>
 #include <std_srvs/Empty.h>
@@ -468,9 +469,9 @@ VIVEnode::VIVEnode(int rate)
   ROS_INFO(" [VIVE] World offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
   feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
-  hmd_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/hmd_pose", 1000);
-  controller1_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/controller1_pose", 1000);
-  controller2_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/controller2_pose", 1000);
+  hmd_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/hmd_pose", 1);
+  controller1_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/controller1_pose", 1);
+  controller2_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/vive/controller2_pose", 1);
 
 #ifdef USE_IMAGE
   image_transport::ImageTransport it(nh_);
@@ -624,17 +625,42 @@ void VIVEnode::Run()
         //Temporary, need to do some other way
         tf::Quaternion quat_correct(0.687, -0.679, -0.200, -0.162), quat_baselink(0.0, 0.0, 0.0, 1.0);
         tf::Transform tf_correct, tf_baselink;
+        tf_correct.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
         tf_correct.setRotation(quat_correct);
-        tf_baselink.setOrigin(tf::Vector3(0.24, 0, -0.745));
+        tf_baselink.setOrigin(tf::Vector3(0.24, 0, -0.50)); // z = -0.745 for the other controller
         tf_baselink.setRotation(quat_baselink);
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf_correct, ros::Time::now(), "controller_"+cur_sn, "controller_"+cur_sn + '_'));
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf_baselink, ros::Time::now(), "controller_"+cur_sn + '_', "base_link_controller_"+cur_sn));
         
-        geometry_msgs::PoseStamped msg_correct;
+        geometry_msgs::PoseStamped msg_correct, out_pose;
         msg_correct.pose.orientation.w = 1;
         msg_correct.header.frame_id = "base_link_controller_"+cur_sn;
         msg_correct.header.stamp = ros::Time::now();
-        controller1_pub_.publish(msg_correct);
+
+        out_pose.header.frame_id = "map";
+        out_pose.header.stamp = ros::Time::now();
+        out_pose.pose.position.z = 0.0;
+
+        // Convert pose to target frame (map)
+        try{
+          tf_listener_.transformPose("map", ros::Time(0), msg_correct, msg_correct.header.frame_id, out_pose);
+        }catch (tf::TransformException ex){
+          ROS_ERROR("%s",ex.what());
+          loop_rate_.sleep();
+          continue;
+        }
+
+        // Transform from geometry_msg quaternion to tf quaternion
+        tf::Quaternion q_out;
+        tf::quaternionMsgToTF(out_pose.pose.orientation, q_out);
+        double roll, pitch, yaw;
+        // Get euler angles from quaternion
+        tf::Matrix3x3(q_out).getRPY(roll, pitch, yaw);
+        q_out.setRPY(0.0, 0.0, yaw);
+        // Tranform from tf quaternion to geometry msgs quaternion
+        tf::quaternionTFToMsg(q_out, out_pose.pose.orientation);
+
+        controller1_pub_.publish(out_pose);
         //Temporary, need to do some other way
 
         //controller1_pub_.publish(msg);
