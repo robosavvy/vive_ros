@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-killall -9 vrserver
+kill -9 $(ps aux | grep '[v]rserver' | grep -v grep | awk '{print $2}')
