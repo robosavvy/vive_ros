@@ -645,7 +645,7 @@ void VIVEnode::Run()
         try{
           tf_listener_.transformPose("map", ros::Time(0), msg_correct, msg_correct.header.frame_id, out_pose);
         }catch (tf::TransformException ex){
-          ROS_ERROR("%s",ex.what());
+          ROS_WARN("%s",ex.what());
           loop_rate_.sleep();
           continue;
         }
