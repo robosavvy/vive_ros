@@ -1,15 +1,26 @@
 #include <cmath>
 #include <ros/ros.h>
+#include <signal.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/Joy.h>
 #include <sensor_msgs/JoyFeedback.h>
 #include <std_srvs/Empty.h>
+#include <iostream>
 #include "vive_ros/vr_interface.h"
+#include <geometry_msgs/TwistStamped.h>
+
+using namespace std;
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
+void mySigintHandler(int sig){
+// Do some custom action.
+// For example, publish a stop message to some other nodes.
+// All the default sigint handler does is call shutdown()
+ros::shutdown();
+}
 
 //#define USE_IMAGE
 
@@ -444,6 +455,9 @@ class VIVEnode
     tf::TransformBroadcaster tf_broadcaster_;
     tf::TransformListener tf_listener_;
     ros::ServiceServer set_origin_server_;
+    ros::Publisher twist0_pub_;
+    ros::Publisher twist1_pub_;
+    ros::Publisher twist2_pub_;
     std::map<std::string, ros::Publisher> button_states_pubs_map;
     ros::Subscriber feedback_sub_;
 
@@ -462,6 +476,9 @@ VIVEnode::VIVEnode(int rate)
   nh_.getParam("/vive/world_yaw", world_yaw_);
   ROS_INFO(" [VIVE] World offset: [%2.3f , %2.3f, %2.3f] %2.3f", world_offset_[0], world_offset_[1], world_offset_[2], world_yaw_);
   set_origin_server_ = nh_.advertiseService("/vive/set_origin", &VIVEnode::setOriginCB, this);
+  twist0_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist0", 10);
+  twist1_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist1", 10);
+  twist2_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/vive/twist2", 10);
   feedback_sub_ = nh_.subscribe("/vive/set_feedback", 10, &VIVEnode::set_feedback, this);
 
 #ifdef USE_IMAGE
@@ -478,7 +495,6 @@ VIVEnode::VIVEnode(int rate)
   pMainApplication->vr_p = &(vr_);
   pMainApplication->InitTextures();
 #endif
-
   return;
 }
 
@@ -490,6 +506,7 @@ VIVEnode::~VIVEnode()
 bool VIVEnode::Init()
 {
   //  Set logging functions
+  
   vr_.setDebugMsgCallback(handleDebugMessages);
   vr_.setInfoMsgCallback(handleInfoMessages);
   vr_.setErrorMsgCallback(handleErrorMessages);
@@ -650,6 +667,69 @@ void VIVEnode::Run()
 
     tf_broadcaster_.sendTransform(tf::StampedTransform(tf_world, ros::Time::now(), "world", "world_vive"));
 
+    // Publish twist messages for controller1 and controller2
+    double lin_vel[3], ang_vel[3];
+    if (vr_.GetDeviceVel(0, lin_vel, ang_vel))
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = lin_vel[0];
+        twist_msg.linear.y = lin_vel[1];
+        twist_msg.linear.z = lin_vel[2];
+        twist_msg.angular.x = ang_vel[0];
+        twist_msg.angular.y = ang_vel[1];
+        twist_msg.angular.z = ang_vel[2];
+
+        geometry_msgs::TwistStamped twist_msg_stamped;
+        twist_msg_stamped.header.stamp = ros::Time::now();
+        twist_msg_stamped.header.frame_id = "world_vive";
+        twist_msg_stamped.twist = twist_msg;
+
+        twist0_pub_.publish(twist_msg_stamped);
+     
+        // std::cout<<"HMD:";
+        // std::cout<<twist_msg_stamped;
+    }
+    if (vr_.GetDeviceVel(1, lin_vel, ang_vel))
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = lin_vel[0];
+        twist_msg.linear.y = lin_vel[1];
+        twist_msg.linear.z = lin_vel[2];
+        twist_msg.angular.x = ang_vel[0];
+        twist_msg.angular.y = ang_vel[1];
+        twist_msg.angular.z = ang_vel[2];
+
+        geometry_msgs::TwistStamped twist_msg_stamped;
+        twist_msg_stamped.header.stamp = ros::Time::now();
+        twist_msg_stamped.header.frame_id = "world_vive";
+        twist_msg_stamped.twist = twist_msg;
+
+        twist1_pub_.publish(twist_msg_stamped);
+     
+        // std::cout<<"Controller 1:";
+        // std::cout<<twist_msg_stamped;
+    }
+    if (vr_.GetDeviceVel(2, lin_vel, ang_vel))
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = lin_vel[0];
+        twist_msg.linear.y = lin_vel[1];
+        twist_msg.linear.z = lin_vel[2];
+        twist_msg.angular.x = ang_vel[0];
+        twist_msg.angular.y = ang_vel[1];
+        twist_msg.angular.z = ang_vel[2];
+
+        geometry_msgs::TwistStamped twist_msg_stamped;
+        twist_msg_stamped.header.stamp = ros::Time::now();
+        twist_msg_stamped.header.frame_id = "world_vive";
+        twist_msg_stamped.twist = twist_msg;
+
+        twist2_pub_.publish(twist_msg_stamped);
+     
+        // std::cout<<"Controller 2:";
+        // std::cout<<twist_msg_stamped;
+    }
+   
 #ifdef USE_IMAGE
     pMainApplication->HandleInput();
     pMainApplication->RenderFrame();
@@ -706,6 +786,7 @@ void VIVEnode::infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg){
 
 // Main
 int main(int argc, char** argv){
+  signal(SIGINT, mySigintHandler);
   ros::init(argc, argv, "vive_node");
 
 #ifdef USE_IMAGE
@@ -717,9 +798,10 @@ int main(int argc, char** argv){
     nodeApp.Shutdown();
     return 1;
   }
-
+  
   nodeApp.Run();
   nodeApp.Shutdown();
+  
 
   return 0;
 };
